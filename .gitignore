@@ -1,0 +1,17 @@
+a.out
+*.[oa]
+*.h.gch
+.*.swp
+solutions
+bigint_test
+graphlib_test
+.DS_Store
+perf.data*
+*~
+\#*#
+*.gcda
+*.gcno
+*.gprof
+*.prof
+gmon.out
+*.gcov
