@@ -67,7 +67,7 @@ func unpackMasks(s string) ([]string, error) {
 		}
 	}
 
-	return masks, nil
+	return sortUnique(masks), nil
 }
 
 // filterByLen returns all words of a given len from a given list of words
@@ -107,6 +107,7 @@ func matchSingleWord(word, mask, candidate string) bool {
 			if strings.ContainsRune(word, rune(candidate[i])) {
 				return false
 			}
+		case '.':
 		}
 
 		w += string(word[i])
@@ -135,15 +136,8 @@ func matchSingleWord(word, mask, candidate string) bool {
 	return true
 }
 
-func hasAtLeastOneChain(word string, masks []string, matches [][]string) bool {
-	if len(masks) == 0 {
-		return false
-	}
-
-	// The key to this is looking at the 'y' values. If a mask says there needs
-	// to be a particular letter, do any of the other possible matches also
-	// satisfy that?
-
+// initPossibleLetters returns maps of possible letters (each letter from the word) for each position in the word
+func initPossibleLetters(word string) []map[byte]bool {
 	possibleLetters := make([]map[byte]bool, len(word))
 
 	// Initialize the possible letters for each position in the word
@@ -154,22 +148,32 @@ func hasAtLeastOneChain(word string, masks []string, matches [][]string) bool {
 		}
 	}
 
-	// Find the intersection of the constraints from the various masks
+	return possibleLetters
+}
+
+// intersectMasks deletes letters from possibleLetters that cannot be at that position in the solution word
+func intersectMasks(word string, masks []string, possibleLetters []map[byte]bool) []map[byte]bool {
+	// For each mask
 	for _, mask := range masks {
-		for i := 0; i < len(mask); i++ {
+		// For each letter in the mask
+		for i := range mask {
 			if mask[i] == 'y' {
 				// This letter is in the word, but not in this position
 				delete(possibleLetters[i], word[i])
-				// // It is also not in any position that has a 'g'
-				// for j := 0; j < len(word); j++ {
-				// 	if mask[j] == 'g' {
-				// 		delete(possibleLetters[i], word[j])
-				// 	}
-				// }
+				// Nor is it in any position that has a 'g'
+				for j := range mask {
+					if mask[j] == 'g' {
+						delete(possibleLetters[i], word[j])
+					}
+				}
 			}
 		}
 	}
 
+	return possibleLetters
+}
+
+func tryEachWord(masks []string, matches [][]string, possibleLetters []map[byte]bool) bool {
 	// For each mask/matches pair
 	for i := 0; i < len(matches); i++ {
 		count := 0
@@ -198,6 +202,82 @@ func hasAtLeastOneChain(word string, masks []string, matches [][]string) bool {
 	return true
 }
 
+func hasAtLeastOneChain(word string, masks []string, matches [][]string) bool {
+	// The key is looking at the 'y' values. If a mask says there needs to be
+	// a particular letter, do any of the other possible matches satisfy that?
+
+	possibleLetters := initPossibleLetters(word)
+
+	// Find the intersection of the constraints from the various masks
+	possibleLetters = intersectMasks(word, masks, possibleLetters)
+
+	return tryEachWord(masks, matches, possibleLetters)
+}
+
+func getLetters(word, mask, match string, masklet byte) string {
+	l := ""
+
+	for i := range mask {
+		if mask[i] == masklet {
+			l += string(match[i])
+		}
+	}
+
+	return l
+}
+
+func greenMask(masks []string) string {
+	green := ""
+
+	for i := 0; i < len(masks[0]); i++ {
+		foundGreen := false
+		for _, mask := range masks {
+			if mask[i] == 'g' {
+				foundGreen = true
+				green += string('g')
+				break
+			}
+		}
+		if !foundGreen {
+			green += string('.')
+		}
+	}
+
+	return green
+}
+
+// chainsHelper returns whether there exists even one valid chain of words that satisfy the masks
+func chainsHelper(word string, masks []string, matches [][]string, depth int, chain []string) []string {
+	// Can we add another word to the chain?
+	for _, match := range matches[depth] {
+		if !matchSingleWord(word, masks[depth], match) {
+			continue
+		}
+
+		depth++
+
+		c := append(chain, match)
+
+		if depth >= len(masks) {
+			return c
+		}
+
+		c = chainsHelper(word, masks, matches, depth, c)
+		if c == nil {
+			// We could not continue the chain with this word. Try the next word.
+			continue
+		}
+
+		return c
+	}
+
+	return nil
+}
+
+func chains(word string, masks []string, matches [][]string) []string {
+	return chainsHelper(word, masks, matches, 0, nil)
+}
+
 // matchMasks returns whether any candidate words match the word/masks pair
 func matchMasks(word string, masks, candidates []string) bool {
 	matches := make([][]string, len(masks))
@@ -210,6 +290,7 @@ func matchMasks(word string, masks, candidates []string) bool {
 			}
 			matches[i] = append(matches[i], candidate)
 		}
+
 		if len(matches[i]) == 0 {
 			return false
 		}
@@ -219,9 +300,10 @@ func matchMasks(word string, masks, candidates []string) bool {
 	// Now determine whether the remaining words provide any chains or whether
 	// they are all unrelated. If there are no chains then this word cannot be
 	// a solution.
+	chain := chains(word, masks, matches)
+	fmt.Println(word, chain)
 
-	// return hasAtLeastOneChain(word, masks, matches)
-	return true
+	return chain != nil
 }
 
 func applyMasks(mysteries, guessables []string, masks []string) []string {
@@ -237,22 +319,25 @@ func applyMasks(mysteries, guessables []string, masks []string) []string {
 	return matches
 }
 
-func sortLetters(letters []string) string {
-	l := ""
+func sortUnique(s []string) []string {
+	// Make a copy so we do not corrupt the backing array of s
+	s2 := make([]string, len(s))
+	copy(s2, s)
 
-	sort.Strings(letters)
+	sort.Strings(s2)
 
-	l += letters[0]
-	last := letters[0]
-	for _, val := range letters {
-		if val == last {
+	last := s2[0]
+	for i := 1; i < len(s2); {
+		if s2[i] == last {
+			// Delete this duplicate
+			s2 = append(s2[:i], s2[i+1:]...)
 			continue
 		}
-		l += val
-		last = val
+		last = s2[i]
+		i++
 	}
 
-	return l
+	return s2
 }
 
 func lettersUsable(matches []string) ([]string, string) {
@@ -266,10 +351,10 @@ func lettersUsable(matches []string) ([]string, string) {
 			letters = append(letters, string(matches[j][i]))
 			usable = append(usable, string(matches[j][i]))
 		}
-		lbp[i] = sortLetters(letters)
+		lbp[i] = strings.Join(sortUnique(letters), "")
 	}
 
-	return lbp, sortLetters(usable)
+	return lbp, strings.Join(sortUnique(usable), "")
 }
 
 func crack(m string) {
@@ -289,8 +374,12 @@ func crack(m string) {
 	matches := applyMasks(mysteries, guessables, masks)
 
 	fmt.Println()
-	fmt.Printf("Found %d matches for masks %v, printing first 10...\n", len(matches), masks)
-	fmt.Println(matches)
+	fmt.Printf("Found %d matches for masks %v, printing first few...\n", len(matches), masks)
+	samples := 10
+	if samples > len(matches) {
+		samples = len(matches)
+	}
+	fmt.Println(matches[:samples])
 
 	lByPos, lUsable := lettersUsable(matches)
 	fmt.Println("Letters by position:", lByPos)
