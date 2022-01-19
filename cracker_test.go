@@ -52,6 +52,7 @@ func TestUnpackMasks(t *testing.T) {
 		{"bbbyy,gybbbbb,gyybb,gbygb,ggbgg", []string{}, true},
 		{"bbbyy,gybbb,gyybb,gbygb,ggbgg,asdff", []string{}, true},
 		{"bbbyy,gybbb,gyybb,gbygb,ggbgg", []string{"bbbyy", "gbygb", "ggbgg", "gybbb", "gyybb"}, false},
+		{"bb,gy,gg", []string{"bb", "gg", "gy"}, false},
 	}
 
 	for _, testCase := range testCases {
@@ -90,6 +91,8 @@ func TestMatchSingleWord(t *testing.T) {
 		{"pshaw", "ggyyg", "psahw", true},
 		{"alpha", "gggyb", "alpax", true},
 		{"alpha", "bbbbb", "xyzzy", true},
+		{"pha", "bbb", "zzy", true},
+		{"pha", "bby", "zzp", true},
 	}
 
 	for _, testCase := range testCases {
@@ -100,20 +103,23 @@ func TestMatchSingleWord(t *testing.T) {
 	}
 }
 
-func TestInitPossibleLetters(t *testing.T) {
+func TestFilterByLen(t *testing.T) {
 	testCases := []struct {
-		word     string
-		expected []map[byte]bool
+		words    []string
+		len      int
+		expected []string
 	}{
-		{"", []map[byte]bool{}},
-		{"a", []map[byte]bool{map[byte]bool{97: true}}},
-		{"bf", []map[byte]bool{map[byte]bool{98: true, 102: true}, map[byte]bool{98: true, 102: true}}},
+		{[]string{"psh", "gg", "w"}, 0, []string{}},
+		{[]string{"psh", "gg", "w"}, 1, []string{"w"}},
+		{[]string{"psh", "gg", "w"}, 2, []string{"gg"}},
+		{[]string{"psh", "gg", "w"}, 3, []string{"psh"}},
+		{[]string{"psh", "gg", "w"}, 4, []string{}},
 	}
 
 	for _, testCase := range testCases {
-		answer := initPossibleLetters(testCase.word)
-		if !equalMap(answer, testCase.expected) {
-			t.Errorf("ERROR: For '%s' expected %v, got %v", testCase.word, testCase.expected, answer)
+		answer := filterByLen(testCase.words, testCase.len)
+		if !equal(answer, testCase.expected) {
+			t.Errorf("ERROR: For %v %d expected %v, got %v", testCase.words, testCase.len, testCase.expected, answer)
 		}
 	}
 }
@@ -127,6 +133,8 @@ func TestMatchMasks(t *testing.T) {
 	}{
 		{"pshaw", []string{"bgggg"}, []string{"tshaw"}, true},
 		{"pshaw", []string{"bgggg", "gbggg"}, []string{"tshaw"}, false},
+		{"shaw", []string{"bggg"}, []string{"thaw"}, true},
+		{"shaw", []string{"bggg", "gbgg"}, []string{"thaw"}, false},
 	}
 
 	for _, testCase := range testCases {
@@ -143,10 +151,4 @@ func TestMatchMasks(t *testing.T) {
 // ybbby,yyybb,yyyby,ggggg
 
 // Word #17 - shire
-// gggbg,bbbyg,ggbyb,ybyyg,ybyyb
-// gggbg,bbbyg,ggbyb,ybyyg,ybyyb,bgybb,bgbyg,bbbbg,bgbbg,bgbyg,ggbgg
-// gggbg,bbbyg,ggbyb,ybyyg,ybyyb,bgybb,bgbyg,bbbbg,bgbbg,bgbyg,ggbgg,byggb
-// gggbg,bbbyg,ggbyb,ybyyg,ybyyb,bgybb,bgbyg,bbbbg,bgbbg,bgbyg,ggbgg,byggb,byyyy
-// gggbg,bbbyg,ggbyb,ybyyg,ybyyb,bgybb,bgbyg,bbbbg,bgbbg,bgbyg,ggbgg,byggb,byyyy,gbggg,bbbyb,bybby,bybyy,gggyy
-// gggbg,bbbyg,ggbyb,ybyyg,ybyyb,bgybb,bgbyg,bbbbg,bgbbg,bgbyg,ggbgg,byggb,byyyy,gbggg,bbbyb,bybby,bybyy,gggyy,bbbyy,bggyb
 // gggbg,bbbyg,ggbyb,ybyyg,ybyyb,bgybb,bgbyg,bbbbg,bgbbg,bgbyg,ggbgg,byggb,byyyy,gbggg,bbbyb,bybby,bybyy,gggyy,bbbyy,bbbbb,bggyb

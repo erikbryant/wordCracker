@@ -19,7 +19,7 @@ var (
 	cheat      = flag.Bool("cheat", false, "Use the actual game dicts instead of the open source")
 )
 
-// loadFile returns the contents of a file split on newlines
+// loadFile returns the contents of a file split on newlines, sorted, and uniqued
 func loadFile(file string) []string {
 	raw, _ := ioutil.ReadFile(file)
 	return strings.Split(string(raw), "\n")
@@ -28,14 +28,13 @@ func loadFile(file string) []string {
 // loadDict returns the mystery and guessable word lists
 func loadDicts() ([]string, []string) {
 	if *cheat {
-		return loadFile("mystery.txt"), loadFile("guessable.txt")
+		return sortUnique(loadFile("mystery.txt")), sortUnique(loadFile("guessable.txt"))
 	}
 
 	// We have to explicitly make a copy. Otherwise one will be a reference
 	// to the other and we will get data corruption when we try to manipulate
 	// the dictionaries separately.
-
-	mysteries := loadFile("../spellable/dict.huge")
+	mysteries := sortUnique(loadFile("../spellable/dict.huge"))
 	guessables := make([]string, len(mysteries))
 	copy(guessables, mysteries)
 
@@ -134,84 +133,6 @@ func matchSingleWord(word, mask, candidate string) bool {
 	}
 
 	return true
-}
-
-// initPossibleLetters returns maps of possible letters (each letter from the word) for each position in the word
-func initPossibleLetters(word string) []map[byte]bool {
-	possibleLetters := make([]map[byte]bool, len(word))
-
-	// Initialize the possible letters for each position in the word
-	for i := 0; i < len(word); i++ {
-		possibleLetters[i] = map[byte]bool{}
-		for j := 0; j < len(word); j++ {
-			possibleLetters[i][word[j]] = true
-		}
-	}
-
-	return possibleLetters
-}
-
-// intersectMasks deletes letters from possibleLetters that cannot be at that position in the solution word
-func intersectMasks(word string, masks []string, possibleLetters []map[byte]bool) []map[byte]bool {
-	// For each mask
-	for _, mask := range masks {
-		// For each letter in the mask
-		for i := range mask {
-			if mask[i] == 'y' {
-				// This letter is in the word, but not in this position
-				delete(possibleLetters[i], word[i])
-				// Nor is it in any position that has a 'g'
-				for j := range mask {
-					if mask[j] == 'g' {
-						delete(possibleLetters[i], word[j])
-					}
-				}
-			}
-		}
-	}
-
-	return possibleLetters
-}
-
-func tryEachWord(masks []string, matches [][]string, possibleLetters []map[byte]bool) bool {
-	// For each mask/matches pair
-	for i := 0; i < len(matches); i++ {
-		count := 0
-		// For each word in matches
-		foundMatch := false
-		for j := 0; j < len(matches[i]); j++ {
-			// For each letter in that word
-			for k := 0; k < len(matches[i][j]); k++ {
-				letter := matches[i][j][k]
-				if masks[i][k] == 'y' {
-					if possibleLetters[k][letter] {
-						foundMatch = true
-					}
-				}
-			}
-		}
-		if !foundMatch {
-			count++
-		}
-
-		if count == len(matches[i]) {
-			return false
-		}
-	}
-
-	return true
-}
-
-func hasAtLeastOneChain(word string, masks []string, matches [][]string) bool {
-	// The key is looking at the 'y' values. If a mask says there needs to be
-	// a particular letter, do any of the other possible matches satisfy that?
-
-	possibleLetters := initPossibleLetters(word)
-
-	// Find the intersection of the constraints from the various masks
-	possibleLetters = intersectMasks(word, masks, possibleLetters)
-
-	return tryEachWord(masks, matches, possibleLetters)
 }
 
 func getLetters(word, mask, match string, masklet byte) string {
@@ -374,11 +295,11 @@ func crack(m string) {
 	matches := applyMasks(mysteries, guessables, masks)
 
 	fmt.Println()
-	fmt.Printf("Found %d matches for masks %v, printing first few...\n", len(matches), masks)
 	samples := 10
 	if samples > len(matches) {
 		samples = len(matches)
 	}
+	fmt.Printf("Found %d matches for masks %v, printing first %d...\n", len(matches), masks, samples)
 	fmt.Println(matches[:samples])
 
 	lByPos, lUsable := lettersUsable(matches)
