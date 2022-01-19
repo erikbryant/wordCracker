@@ -31,9 +31,9 @@ func loadDicts() ([]string, []string) {
 		return sortUnique(loadFile("mystery.txt")), sortUnique(loadFile("guessable.txt"))
 	}
 
-	// We have to explicitly make a copy. Otherwise one will be a reference
-	// to the other and we will get data corruption when we try to manipulate
-	// the dictionaries separately.
+	// Even though they are identical, make a copy. Otherwise one will be a
+	// reference to the other and we will get data corruption if we try to
+	// manipulate the dictionaries separately.
 	mysteries := sortUnique(loadFile("../spellable/dict.huge"))
 	guessables := make([]string, len(mysteries))
 	copy(guessables, mysteries)
@@ -135,70 +135,6 @@ func matchSingleWord(word, mask, candidate string) bool {
 	return true
 }
 
-func getLetters(word, mask, match string, masklet byte) string {
-	l := ""
-
-	for i := range mask {
-		if mask[i] == masklet {
-			l += string(match[i])
-		}
-	}
-
-	return l
-}
-
-func greenMask(masks []string) string {
-	green := ""
-
-	for i := 0; i < len(masks[0]); i++ {
-		foundGreen := false
-		for _, mask := range masks {
-			if mask[i] == 'g' {
-				foundGreen = true
-				green += string('g')
-				break
-			}
-		}
-		if !foundGreen {
-			green += string('.')
-		}
-	}
-
-	return green
-}
-
-// chainsHelper returns whether there exists even one valid chain of words that satisfy the masks
-func chainsHelper(word string, masks []string, matches [][]string, depth int, chain []string) []string {
-	// Can we add another word to the chain?
-	for _, match := range matches[depth] {
-		if !matchSingleWord(word, masks[depth], match) {
-			continue
-		}
-
-		depth++
-
-		c := append(chain, match)
-
-		if depth >= len(masks) {
-			return c
-		}
-
-		c = chainsHelper(word, masks, matches, depth, c)
-		if c == nil {
-			// We could not continue the chain with this word. Try the next word.
-			continue
-		}
-
-		return c
-	}
-
-	return nil
-}
-
-func chains(word string, masks []string, matches [][]string) []string {
-	return chainsHelper(word, masks, matches, 0, nil)
-}
-
 // matchMasks returns whether any candidate words match the word/masks pair
 func matchMasks(word string, masks, candidates []string) bool {
 	matches := make([][]string, len(masks))
@@ -217,16 +153,16 @@ func matchMasks(word string, masks, candidates []string) bool {
 		}
 	}
 
-	// We have ruled out cases where an individual mask has no possible matches.
-	// Now determine whether the remaining words provide any chains or whether
-	// they are all unrelated. If there are no chains then this word cannot be
-	// a solution.
-	chain := chains(word, masks, matches)
-	fmt.Println(word, chain)
+	temp := []string{}
+	for _, match := range matches {
+		temp = append(temp, match[0])
+	}
+	fmt.Println(word, temp)
 
-	return chain != nil
+	return true
 }
 
+// applyMasks returns the set of matches for a given set of masks
 func applyMasks(mysteries, guessables []string, masks []string) []string {
 	matches := []string{}
 
@@ -240,6 +176,7 @@ func applyMasks(mysteries, guessables []string, masks []string) []string {
 	return matches
 }
 
+// sortUnique sorts a list and removes any duplicates
 func sortUnique(s []string) []string {
 	// Make a copy so we do not corrupt the backing array of s
 	s2 := make([]string, len(s))
@@ -261,6 +198,7 @@ func sortUnique(s []string) []string {
 	return s2
 }
 
+// letterFrequency returns maps of the frequency of letters in the given matches
 func letterFrequency(matches []string) (map[byte]int, []map[byte]int) {
 	positions := len(matches[0])
 	lFreq := map[byte]int{}
@@ -280,6 +218,7 @@ func letterFrequency(matches []string) (map[byte]int, []map[byte]int) {
 	return lFreq, lbpFreq
 }
 
+// prettyPrintFreq returns a formatted string representation of the given map
 func prettyPrintFreq(f map[byte]int) string {
 	out := []string{}
 
@@ -291,6 +230,39 @@ func prettyPrintFreq(f map[byte]int) string {
 	return fmt.Sprintf("  %s\n", strings.Join(sortUnique(out), " "))
 }
 
+// scoreWord returns the sum of unique letter frequencies for a given word
+func scoreWord(word string, freq map[byte]int) int {
+	used := map[rune]bool{}
+	score := 0
+
+	for _, val := range word {
+		if used[val] {
+			continue
+		}
+		score += freq[byte(val)]
+		used[val] = true
+	}
+
+	return score
+}
+
+// scoreWords returns the max of unique letter frequencies from a set of words
+func scoreWords(words []string, lFreq map[byte]int) (string, int) {
+	maxScore := 0
+	maxWord := ""
+
+	for _, word := range words {
+		score := scoreWord(word, lFreq)
+		if score > maxScore {
+			maxScore = score
+			maxWord = word
+		}
+	}
+
+	return maxWord, maxScore
+}
+
+// printStats prints statistics abut the matches
 func printStats(matches, masks []string) {
 	fmt.Println()
 
@@ -315,37 +287,7 @@ func printStats(matches, masks []string) {
 	fmt.Printf("\nSuggested guess: '%s' for a score of %d\n", maxWord, maxScore)
 }
 
-// scoreWord returns the sum of unique letter frequencies for a given word
-func scoreWord(word string, freq map[byte]int) int {
-	used := map[rune]bool{}
-	score := 0
-
-	for _, val := range word {
-		if used[val] {
-			continue
-		}
-		score += freq[byte(val)]
-		used[val] = true
-	}
-
-	return score
-}
-
-func scoreWords(words []string, lFreq map[byte]int) (string, int) {
-	maxScore := 0
-	maxWord := ""
-
-	for _, word := range words {
-		score := scoreWord(word, lFreq)
-		if score > maxScore {
-			maxScore = score
-			maxWord = word
-		}
-	}
-
-	return maxWord, maxScore
-}
-
+// crack runs the main loop
 func crack(m string) error {
 	masks, err := unpackMasks(m)
 	if err != nil {
