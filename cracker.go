@@ -278,11 +278,25 @@ func lettersUsable(matches []string) ([]string, string) {
 	return lbp, strings.Join(sortUnique(usable), "")
 }
 
-func crack(m string) {
+func printStats(matches []string) {
+	fmt.Println()
+
+	samples := 10
+	if samples > len(matches) {
+		samples = len(matches)
+	}
+	fmt.Printf("Found %d matches for masks %v, printing first %d...\n", len(matches), masks, samples)
+	fmt.Println(matches[:samples])
+
+	lByPos, lUsable := lettersUsable(matches)
+	fmt.Println("Letters       :", lUsable)
+	fmt.Println("Letters by pos:", lByPos)
+}
+
+func crack(m string) error {
 	masks, err := unpackMasks(m)
 	if err != nil {
-		fmt.Println(err)
-		return
+		return err
 	}
 
 	mysteries, guessables := loadDicts()
@@ -294,17 +308,9 @@ func crack(m string) {
 	// Find which mystery words can be formed using words from the guessable words
 	matches := applyMasks(mysteries, guessables, masks)
 
-	fmt.Println()
-	samples := 10
-	if samples > len(matches) {
-		samples = len(matches)
-	}
-	fmt.Printf("Found %d matches for masks %v, printing first %d...\n", len(matches), masks, samples)
-	fmt.Println(matches[:samples])
+	printStats(matches)
 
-	lByPos, lUsable := lettersUsable(matches)
-	fmt.Println("Letters by position:", lByPos)
-	fmt.Println("Letters overall    :", lUsable)
+	return nil
 }
 
 func main() {
@@ -320,5 +326,8 @@ func main() {
 		defer pprof.StopCPUProfile()
 	}
 
-	crack(*masks)
+	err := crack(*masks)
+	if err != nil {
+		fmt.Println(err)
+	}
 }
