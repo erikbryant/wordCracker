@@ -261,24 +261,37 @@ func sortUnique(s []string) []string {
 	return s2
 }
 
-func lettersUsable(matches []string) ([]string, string) {
-	// Letters by position in word
-	lbp := make([]string, len(matches[0]))
+func letterFrequency(matches []string) (map[byte]int, []map[byte]int) {
+	positions := len(matches[0])
+	lFreq := map[byte]int{}
+	lbpFreq := make([]map[byte]int, positions)
 
-	usable := []string{}
-	for i := 0; i < len(matches[0]); i++ {
-		letters := []string{}
-		for j := 0; j < len(matches); j++ {
-			letters = append(letters, string(matches[j][i]))
-			usable = append(usable, string(matches[j][i]))
-		}
-		lbp[i] = strings.Join(sortUnique(letters), "")
+	for i := range lbpFreq {
+		lbpFreq[i] = map[byte]int{}
 	}
 
-	return lbp, strings.Join(sortUnique(usable), "")
+	for _, match := range matches {
+		for i := 0; i < positions; i++ {
+			lbpFreq[i][match[i]]++
+			lFreq[match[i]]++
+		}
+	}
+
+	return lFreq, lbpFreq
 }
 
-func printStats(matches []string) {
+func prettyPrintFreq(f map[byte]int) string {
+	out := []string{}
+
+	for key, val := range f {
+		str := fmt.Sprintf("%c:%2d", key, val)
+		out = append(out, str)
+	}
+
+	return fmt.Sprintf("  %s\n", strings.Join(sortUnique(out), " "))
+}
+
+func printStats(matches, masks []string) {
 	fmt.Println()
 
 	samples := 10
@@ -288,9 +301,49 @@ func printStats(matches []string) {
 	fmt.Printf("Found %d matches for masks %v, printing first %d...\n", len(matches), masks, samples)
 	fmt.Println(matches[:samples])
 
-	lByPos, lUsable := lettersUsable(matches)
-	fmt.Println("Letters       :", lUsable)
-	fmt.Println("Letters by pos:", lByPos)
+	lFreq, lByPos := letterFrequency(matches)
+
+	fmt.Println("Letter frequency by position:")
+	for i, pos := range lByPos {
+		fmt.Printf("  [%d] %s\n", i, prettyPrintFreq(pos))
+	}
+
+	fmt.Println("Letter frequency overall:")
+	fmt.Printf(prettyPrintFreq(lFreq))
+
+	maxWord, maxScore := scoreWords(matches, lFreq)
+	fmt.Printf("\nSuggested guess: '%s' for a score of %d\n", maxWord, maxScore)
+}
+
+// scoreWord returns the sum of unique letter frequencies for a given word
+func scoreWord(word string, freq map[byte]int) int {
+	used := map[rune]bool{}
+	score := 0
+
+	for _, val := range word {
+		if used[val] {
+			continue
+		}
+		score += freq[byte(val)]
+		used[val] = true
+	}
+
+	return score
+}
+
+func scoreWords(words []string, lFreq map[byte]int) (string, int) {
+	maxScore := 0
+	maxWord := ""
+
+	for _, word := range words {
+		score := scoreWord(word, lFreq)
+		if score > maxScore {
+			maxScore = score
+			maxWord = word
+		}
+	}
+
+	return maxWord, maxScore
 }
 
 func crack(m string) error {
@@ -308,7 +361,7 @@ func crack(m string) error {
 	// Find which mystery words can be formed using words from the guessable words
 	matches := applyMasks(mysteries, guessables, masks)
 
-	printStats(matches)
+	printStats(matches, masks)
 
 	return nil
 }
