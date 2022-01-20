@@ -247,19 +247,22 @@ func scoreWord(word string, freq map[byte]int) int {
 }
 
 // scoreWords returns the max of unique letter frequencies from a set of words
-func scoreWords(words []string, lFreq map[byte]int) (string, int) {
+func scoreWords(words []string, lFreq map[byte]int) ([]string, int) {
 	maxScore := 0
-	maxWord := ""
+	maxWords := []string{}
 
 	for _, word := range words {
 		score := scoreWord(word, lFreq)
 		if score > maxScore {
 			maxScore = score
-			maxWord = word
+			maxWords = []string{word}
+		}
+		if score == maxScore {
+			maxWords = append(maxWords, word)
 		}
 	}
 
-	return maxWord, maxScore
+	return sortUnique(maxWords), maxScore
 }
 
 // printStats prints statistics abut the matches
@@ -283,8 +286,8 @@ func printStats(matches, masks []string) {
 	fmt.Println("Letter frequency overall:")
 	fmt.Printf(prettyPrintFreq(lFreq))
 
-	maxWord, maxScore := scoreWords(matches, lFreq)
-	fmt.Printf("\nSuggested guess: '%s' for a score of %d\n", maxWord, maxScore)
+	maxWords, maxScore := scoreWords(matches, lFreq)
+	fmt.Printf("\nSuggested guess(es): %v for a score of %d\n", maxWords, maxScore)
 }
 
 // crack runs the main loop
