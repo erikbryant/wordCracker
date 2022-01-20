@@ -82,6 +82,26 @@ func filterByLen(words []string, l int) []string {
 	return matches
 }
 
+// replace replaces the first instance of a with b in w
+func replace(w []byte, a, b byte) {
+	for i := range w {
+		if w[i] == a {
+			w[i] = b
+			return
+		}
+	}
+}
+
+// contains returns true if b is in w
+func contains(w []byte, b byte) bool {
+	for _, val := range w {
+		if val == b {
+			return true
+		}
+	}
+	return false
+}
+
 // matchSingleWord returns true if word matches candidate based on the given mask
 func matchSingleWord(word, mask, candidate string) bool {
 	if len(word) != len(mask) || len(word) != len(candidate) {
@@ -90,7 +110,7 @@ func matchSingleWord(word, mask, candidate string) bool {
 	}
 
 	// We will mask out some of the letters in word. Store that in w.
-	w := ""
+	w := make([]byte, len(word))
 
 	// Evaluate 'b' and 'g' masks
 	for i, m := range mask {
@@ -100,7 +120,7 @@ func matchSingleWord(word, mask, candidate string) bool {
 				return false
 			}
 			// This letter has been "spoken for", mark it as such
-			w += "_"
+			w[i] = '_'
 			continue
 		case 'b':
 			if strings.ContainsRune(word, rune(candidate[i])) {
@@ -109,7 +129,7 @@ func matchSingleWord(word, mask, candidate string) bool {
 		case '.':
 		}
 
-		w += string(word[i])
+		w[i] = word[i]
 	}
 
 	// Evaluate 'y' masks
@@ -119,7 +139,7 @@ func matchSingleWord(word, mask, candidate string) bool {
 		}
 
 		// The candidate letter must be in word...
-		if !strings.ContainsRune(w, rune(candidate[i])) {
+		if !contains(w, candidate[i]) {
 			return false
 		}
 
@@ -129,7 +149,7 @@ func matchSingleWord(word, mask, candidate string) bool {
 		}
 
 		// Mark the letter as having been "spoken for"
-		w = strings.Replace(w, string(candidate[i]), "_", 1)
+		replace(w, candidate[i], '_')
 	}
 
 	return true
@@ -178,6 +198,10 @@ func applyMasks(mysteries, guessables []string, masks []string) []string {
 
 // sortUnique sorts a list and removes any duplicates
 func sortUnique(s []string) []string {
+	if len(s) <= 0 {
+		return []string{}
+	}
+
 	// Make a copy so we do not corrupt the backing array of s
 	s2 := make([]string, len(s))
 	copy(s2, s)
@@ -273,7 +297,7 @@ func printStats(matches, masks []string) {
 	if samples > len(matches) {
 		samples = len(matches)
 	}
-	fmt.Printf("Found %d matches for masks %v, printing first %d...\n", len(matches), masks, samples)
+	fmt.Printf("Found %d matches for masks %v, printing first few...\n", len(matches), masks)
 	fmt.Println(matches[:samples])
 
 	lFreq, lByPos := letterFrequency(matches)

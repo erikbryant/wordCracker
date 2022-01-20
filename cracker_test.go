@@ -18,6 +18,20 @@ func equal(a, b []string) bool {
 	return true
 }
 
+func equalByte(a, b []byte) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+
+	return true
+}
+
 func equalMap(a, b []map[byte]bool) bool {
 	if len(a) != len(b) {
 		return false
@@ -69,6 +83,70 @@ func TestUnpackMasks(t *testing.T) {
 	}
 }
 
+func TestFilterByLen(t *testing.T) {
+	testCases := []struct {
+		words    []string
+		len      int
+		expected []string
+	}{
+		{[]string{"psh", "gg", "w"}, 0, []string{}},
+		{[]string{"psh", "gg", "w"}, 1, []string{"w"}},
+		{[]string{"psh", "gg", "w"}, 2, []string{"gg"}},
+		{[]string{"psh", "gg", "w"}, 3, []string{"psh"}},
+		{[]string{"psh", "gg", "w"}, 4, []string{}},
+	}
+
+	for _, testCase := range testCases {
+		answer := filterByLen(testCase.words, testCase.len)
+		if !equal(answer, testCase.expected) {
+			t.Errorf("ERROR: For %v %d expected %v, got %v", testCase.words, testCase.len, testCase.expected, answer)
+		}
+	}
+}
+
+func TestReplace(t *testing.T) {
+	testCases := []struct {
+		w        []byte
+		a        byte
+		b        byte
+		expected []byte
+	}{
+		{[]byte{}, ' ', '_', []byte{}},
+		{[]byte{'a', 'b'}, '_', 'A', []byte{'a', 'b'}},
+		{[]byte{'a', 'b'}, 'a', 'c', []byte{'c', 'b'}},
+		{[]byte{'a', 'b'}, 'b', '4', []byte{'a', '4'}},
+	}
+
+	for _, testCase := range testCases {
+		answer := make([]byte, len(testCase.w))
+		copy(answer, testCase.w)
+		replace(answer, testCase.a, testCase.b)
+		if !equalByte(answer, testCase.expected) {
+			t.Errorf("ERROR: For %v %c %c expected %v, got %v", testCase.w, testCase.a, testCase.b, testCase.expected, answer)
+		}
+	}
+}
+
+func TestContains(t *testing.T) {
+	testCases := []struct {
+		w        []byte
+		b        byte
+		expected bool
+	}{
+		{[]byte{}, ' ', false},
+		{[]byte{'a', 'b'}, '_', false},
+		{[]byte{'a', 'b'}, 'a', true},
+		{[]byte{'a', 'b'}, 'b', true},
+	}
+
+	for _, testCase := range testCases {
+		answer := contains(testCase.w, testCase.b)
+		if answer != testCase.expected {
+			t.Errorf("ERROR: For %v %c expected %t, got %t", testCase.w, testCase.b, testCase.expected, answer)
+		}
+	}
+}
+
 func TestMatchSingleWord(t *testing.T) {
 	testCases := []struct {
 		w        string
@@ -103,27 +181,6 @@ func TestMatchSingleWord(t *testing.T) {
 	}
 }
 
-func TestFilterByLen(t *testing.T) {
-	testCases := []struct {
-		words    []string
-		len      int
-		expected []string
-	}{
-		{[]string{"psh", "gg", "w"}, 0, []string{}},
-		{[]string{"psh", "gg", "w"}, 1, []string{"w"}},
-		{[]string{"psh", "gg", "w"}, 2, []string{"gg"}},
-		{[]string{"psh", "gg", "w"}, 3, []string{"psh"}},
-		{[]string{"psh", "gg", "w"}, 4, []string{}},
-	}
-
-	for _, testCase := range testCases {
-		answer := filterByLen(testCase.words, testCase.len)
-		if !equal(answer, testCase.expected) {
-			t.Errorf("ERROR: For %v %d expected %v, got %v", testCase.words, testCase.len, testCase.expected, answer)
-		}
-	}
-}
-
 func TestMatchMasks(t *testing.T) {
 	testCases := []struct {
 		w        string
@@ -141,6 +198,22 @@ func TestMatchMasks(t *testing.T) {
 		answer := matchMasks(testCase.w, testCase.mask, testCase.c)
 		if answer != testCase.expected {
 			t.Errorf("ERROR: For %s/%v/%v expected %t, got %t", testCase.w, testCase.mask, testCase.c, testCase.expected, answer)
+		}
+	}
+}
+
+func TestSortUnique(t *testing.T) {
+	testCases := []struct {
+		w        []string
+		expected []string
+	}{
+		{[]string{}, []string{}},
+	}
+
+	for _, testCase := range testCases {
+		answer := sortUnique(testCase.w)
+		if !equal(answer, testCase.expected) {
+			t.Errorf("ERROR: For %v expected %v, got %v", testCase.w, testCase.expected, answer)
 		}
 	}
 }
