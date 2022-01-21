@@ -28,13 +28,13 @@ func loadFile(file string) []string {
 // loadDict returns the mystery and guessable word lists
 func loadDicts() ([]string, []string) {
 	if *cheat {
-		return sortUnique(loadFile("mystery.txt")), sortUnique(loadFile("guessable.txt"))
+		return sortUnique(loadFile("../dictionaries/wordleMystery.dict")), sortUnique(loadFile("../dictionaries/wordleGuessable.dict"))
 	}
 
 	// Even though they are identical, make a copy. Otherwise one will be a
 	// reference to the other and we will get data corruption if we try to
 	// manipulate the dictionaries separately.
-	mysteries := sortUnique(loadFile("../spellable/dict.huge"))
+	mysteries := sortUnique(loadFile("../dictionaries/huge.dict"))
 	guessables := make([]string, len(mysteries))
 	copy(guessables, mysteries)
 
@@ -102,7 +102,7 @@ func contains(w []byte, b byte) bool {
 	return false
 }
 
-// matchSingleWord returns true if word matches candidate based on the given mask
+// matchSingleWord returns true if candidate is not ruled out based on word/mask
 func matchSingleWord(word, mask, candidate string) bool {
 	if len(word) != len(mask) || len(word) != len(candidate) {
 		fmt.Println("Internal consistency error!", word, mask, candidate)
@@ -173,11 +173,11 @@ func matchMasks(word string, masks, candidates []string) bool {
 		}
 	}
 
-	temp := []string{}
-	for _, match := range matches {
-		temp = append(temp, match[0])
-	}
-	fmt.Println(word, temp)
+	// temp := []string{}
+	// for _, match := range matches {
+	// 	temp = append(temp, match[0])
+	// }
+	// fmt.Println(word, temp)
 
 	return true
 }
@@ -224,6 +224,10 @@ func sortUnique(s []string) []string {
 
 // letterFrequency returns maps of the frequency of letters in the given matches
 func letterFrequency(matches []string) (map[byte]int, []map[byte]int) {
+	if len(matches) == 0 {
+		return nil, nil
+	}
+
 	positions := len(matches[0])
 	lFreq := map[byte]int{}
 	lbpFreq := make([]map[byte]int, positions)
@@ -270,23 +274,35 @@ func scoreWord(word string, freq map[byte]int) int {
 	return score
 }
 
-// scoreWords returns the max of unique letter frequencies from a set of words
-func scoreWords(words []string, lFreq map[byte]int) ([]string, int) {
+type score struct {
+	score int
+	word  string
+}
+
+// scoreWords returns the scores for each word and the words with the max score
+func scoreWords(words []string, lFreq map[byte]int) ([]string, int, []score) {
 	maxScore := 0
 	maxWords := []string{}
+	scores := make([]score, len(words))
 
-	for _, word := range words {
+	for i, word := range words {
 		score := scoreWord(word, lFreq)
+
+		scores[i].score = score
+		scores[i].word = word
+
 		if score > maxScore {
 			maxScore = score
 			maxWords = []string{word}
+			continue
 		}
+
 		if score == maxScore {
 			maxWords = append(maxWords, word)
 		}
 	}
 
-	return sortUnique(maxWords), maxScore
+	return maxWords, maxScore, scores
 }
 
 // printStats prints statistics abut the matches
@@ -310,7 +326,7 @@ func printStats(matches, masks []string) {
 	fmt.Println("Letter frequency overall:")
 	fmt.Printf(prettyPrintFreq(lFreq))
 
-	maxWords, maxScore := scoreWords(matches, lFreq)
+	maxWords, maxScore, _ := scoreWords(matches, lFreq)
 	fmt.Printf("\nSuggested guess(es): %v for a score of %d\n", maxWords, maxScore)
 }
 
@@ -335,6 +351,223 @@ func crack(m string) error {
 	return nil
 }
 
+// makeMask returns the byg mask for the given guess and given mystery word
+func makeMask(word, guess string) string {
+	m := make([]byte, len(word))
+	w := make([]byte, len(word))
+
+	for i, val := range word {
+		w[i] = byte(val)
+	}
+
+	// g
+	for i := range word {
+		if word[i] != guess[i] {
+			continue
+		}
+		m[i] = 'g'
+		w[i] = '_'
+	}
+
+	// y and b
+	for i := range word {
+		if m[i] != 0 {
+			continue
+		}
+
+		if contains(w, guess[i]) {
+			m[i] = 'y'
+			replace(w, guess[i], '_')
+			continue
+		}
+
+		m[i] = 'b'
+	}
+
+	mask := ""
+	for _, val := range m {
+		mask += string(val)
+	}
+
+	return mask
+}
+
+// findMaxScore returns the highest scoring word that has not already been guessed
+func findMaxScore(scores []score, guesses string) score {
+	max := score{-1, ""}
+
+	for _, s := range scores {
+		if s.score > max.score && !strings.Contains(guesses, s.word) {
+			max.score = s.score
+			max.word = s.word
+		}
+	}
+
+	return max
+}
+
+func suggestGuess(matches []string, guesses string) string {
+	lFreq, _ := letterFrequency(matches)
+	_, _, scores := scoreWords(matches, lFreq)
+	max := findMaxScore(scores, guesses)
+
+	return max.word
+}
+
+func pruneGuessables(guessables []string, word, mask string) []string {
+	pruned := []string{}
+
+	//
+	// Yellow
+	//
+	yellowLetters := []byte{}
+	yellowLetterPos := [][]int{}
+	for i := range mask {
+		if mask[i] != 'y' {
+			continue
+		}
+
+		yellowLetters = append(yellowLetters, word[i])
+		yellowLetterPos = append(yellowLetterPos, []int{})
+		index := len(yellowLetters) - 1
+
+		for j := range mask {
+			if j == i {
+				// Skip our own letter
+				continue
+			}
+			if mask[j] == 'g' {
+				continue
+			}
+			// This is y or b and *could* be where our y-letter goes
+			yellowLetterPos[index] = append(yellowLetterPos[index], j)
+		}
+	}
+
+	//
+	// Black
+	//
+	blackLetters := ""
+	for i := range mask {
+		if mask[i] != 'b' {
+			continue
+		}
+
+		solvable := true
+		for j := range mask {
+			if mask[j] == 'y' && word[j] == word[i] {
+				// We do not have enough information to solve. Abort.
+				solvable = false
+				break
+			}
+		}
+		if !solvable {
+			continue
+		}
+
+		// This is a b letter and there are no y letters that are the same as this
+		// so this letter can't be anywhere in the word
+		blackLetters += string(word[i])
+	}
+
+	for _, guess := range guessables {
+		if !greenCompliant(word, mask, guess) {
+			continue
+		}
+
+		if !yellowCompliant(yellowLetters, yellowLetterPos, guess) {
+			continue
+		}
+
+		if !blackCompliant(blackLetters, mask, guess) {
+			continue
+		}
+
+		pruned = append(pruned, guess)
+	}
+
+	return pruned
+}
+
+func greenCompliant(word, mask, guess string) bool {
+	for i := range mask {
+		if mask[i] == 'g' && guess[i] != word[i] {
+			return false
+		}
+	}
+
+	return true
+}
+
+func yellowCompliant(letters []byte, letterPos [][]int, guess string) bool {
+	if len(letters) == 0 {
+		return true
+	}
+
+	for i, val := range letters {
+		// We need to find at least one instance of this letter
+		for _, pos := range letterPos[i] {
+			if guess[pos] == val {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+func blackCompliant(letters string, mask, guess string) bool {
+	for i := range mask {
+		if mask[i] == 'g' {
+			continue
+		}
+		if strings.ContainsAny(string(guess[i]), letters) {
+			return false
+		}
+	}
+
+	return true
+}
+
+func play(wordLen int) {
+	mysteries, guessableWords := loadDicts()
+
+	// Use only the words of appropriate length
+	mysteries = filterByLen(mysteries, wordLen)
+	guessableWords = filterByLen(guessableWords, wordLen)
+
+	totalGuesses := 0
+	totalWords := 0
+
+	for _, mystery := range mysteries {
+		masks := []string{}
+		guesses := ""
+		guessables := guessableWords
+		totalWords++
+
+		for i := 1; ; i++ {
+			guess := suggestGuess(guessables, guesses)
+			guesses += "." + guess
+			totalGuesses++
+
+			mask := makeMask(mystery, guess)
+			masks = append(masks, mask)
+
+			// fmt.Println("Guessing:", mystery, guess, masks, len(guessables))
+
+			if guess == mystery {
+				// fmt.Printf("Got it in %d guesses!!!!\n", i)
+				break
+			}
+
+			guessables = pruneGuessables(guessables, guess, mask)
+		}
+	}
+
+	fmt.Println("Total words:", totalWords)
+	fmt.Println("Average guesses:", float64(totalGuesses)/float64(totalWords))
+}
+
 func main() {
 	fmt.Printf("Welcome to Cracker\n\n")
 
@@ -347,6 +580,9 @@ func main() {
 		pprof.StartCPUProfile(f)
 		defer pprof.StopCPUProfile()
 	}
+
+	// play(5)
+	// return
 
 	err := crack(*masks)
 	if err != nil {

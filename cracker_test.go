@@ -54,6 +54,10 @@ func equalMap(a, b []map[byte]bool) bool {
 	return true
 }
 
+func equalScore(a, b score) bool {
+	return a.score == b.score && a.word == b.word
+}
+
 func TestUnpackMasks(t *testing.T) {
 	testCases := []struct {
 		m           string
@@ -214,6 +218,68 @@ func TestSortUnique(t *testing.T) {
 		answer := sortUnique(testCase.w)
 		if !equal(answer, testCase.expected) {
 			t.Errorf("ERROR: For %v expected %v, got %v", testCase.w, testCase.expected, answer)
+		}
+	}
+}
+
+func TestMakeMask(t *testing.T) {
+	testCases := []struct {
+		w        string
+		g        string
+		expected string
+	}{
+		{"", "", ""},
+		{"abc", "ddd", "bbb"},
+		{"abc", "aaa", "gbb"},
+		{"abc", "cab", "yyy"},
+		{"apple", "house", "bbbbg"},
+	}
+
+	for _, testCase := range testCases {
+		answer := makeMask(testCase.w, testCase.g)
+		if answer != testCase.expected {
+			t.Errorf("ERROR: For %s %s expected %s, got %s", testCase.w, testCase.g, testCase.expected, answer)
+		}
+	}
+}
+
+func TestFindMaxScore(t *testing.T) {
+	testCases := []struct {
+		s        []score
+		g        string
+		expected score
+	}{
+		{[]score{}, "abc", score{-1, ""}},
+		{[]score{score{2, "aaa"}}, "abc", score{2, "aaa"}},
+		{[]score{score{2, "abc"}}, "abc", score{-1, ""}},
+		{[]score{score{2, "aaa"}, score{5, "abc"}}, "abc", score{2, "aaa"}},
+	}
+
+	for _, testCase := range testCases {
+		answer := findMaxScore(testCase.s, testCase.g)
+		if !equalScore(answer, testCase.expected) {
+			t.Errorf("ERROR: For %v %s expected %v, got %v", testCase.s, testCase.g, testCase.expected, answer)
+		}
+	}
+}
+
+func TestSuggestGuess(t *testing.T) {
+	testCases := []struct {
+		m        []string
+		g        string
+		expected string
+	}{
+		{[]string{""}, "", ""},
+		{[]string{"abc"}, "", "abc"},
+		{[]string{"abc"}, "abc", ""},
+		{[]string{"abc", "def"}, "abc", "def"},
+		{[]string{"abc", "def"}, "def", "abc"},
+	}
+
+	for _, testCase := range testCases {
+		answer := suggestGuess(testCase.m, testCase.g)
+		if answer != testCase.expected {
+			t.Errorf("ERROR: For %v %s expected %s, got %s", testCase.m, testCase.g, testCase.expected, answer)
 		}
 	}
 }
