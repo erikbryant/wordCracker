@@ -223,17 +223,18 @@ func sortUnique(s []string) []string {
 }
 
 // letterFrequency returns maps of the frequency of letters in the given matches
-func letterFrequency(matches []string) (map[byte]int, []map[byte]int) {
+func letterFrequency(matches []string) ([]int, [][]int) {
 	if len(matches) == 0 {
 		return nil, nil
 	}
 
+	letterLen := 256 // This is too many, but it is fast
 	positions := len(matches[0])
-	lFreq := map[byte]int{}
-	lbpFreq := make([]map[byte]int, positions)
+	lFreq := make([]int, letterLen)
+	lbpFreq := make([][]int, positions)
 
 	for i := range lbpFreq {
-		lbpFreq[i] = map[byte]int{}
+		lbpFreq[i] = make([]int, letterLen)
 	}
 
 	for _, match := range matches {
@@ -247,10 +248,13 @@ func letterFrequency(matches []string) (map[byte]int, []map[byte]int) {
 }
 
 // prettyPrintFreq returns a formatted string representation of the given map
-func prettyPrintFreq(f map[byte]int) string {
+func prettyPrintFreq(f []int) string {
 	out := []string{}
 
 	for key, val := range f {
+		if val == 0 {
+			continue
+		}
 		str := fmt.Sprintf("%c:%2d", key, val)
 		out = append(out, str)
 	}
@@ -259,7 +263,7 @@ func prettyPrintFreq(f map[byte]int) string {
 }
 
 // scoreWord returns the sum of unique letter frequencies for a given word
-func scoreWord(word string, freq map[byte]int) int {
+func scoreWord(word string, freq []int) int {
 	used := map[rune]bool{}
 	score := 0
 
@@ -280,7 +284,7 @@ type score struct {
 }
 
 // scoreWords returns the scores for each word and the words with the max score
-func scoreWords(words []string, lFreq map[byte]int) ([]string, int, []score) {
+func scoreWords(words []string, lFreq []int) ([]string, int, []score) {
 	maxScore := 0
 	maxWords := []string{}
 	scores := make([]score, len(words))
@@ -304,6 +308,8 @@ func scoreWords(words []string, lFreq map[byte]int) ([]string, int, []score) {
 
 	return maxWords, maxScore, scores
 }
+
+// ----------------------------------------------------------
 
 // printStats prints statistics abut the matches
 func printStats(matches, masks []string) {
