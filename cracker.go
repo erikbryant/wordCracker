@@ -608,7 +608,17 @@ func solveOne(mysteries, guessables, masks, guessWords, guessMasks []string) {
 	matches := applyMasks(mysteries, guessables, masks)
 	printStats(matches, masks, "Analysis of initial masks")
 
-	guesses := strings.Join(guessWords, ".")
+	guesses := ""
+	for i := range guessWords {
+		masks = append(masks, guessMasks[i])
+		guesses += "." + guessWords[i]
+
+		matches = pruneGuessables(matches, guessWords[i], guessMasks[i])
+		msg := fmt.Sprintf("After applying %s/%s", guessWords[i], guessMasks[i])
+		printStats(matches, masks, msg)
+		fmt.Println(matches)
+	}
+
 	guess := suggestGuess(matches, guesses)
 	fmt.Println("Suggested guess:", guess)
 }
