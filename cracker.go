@@ -1,6 +1,6 @@
 package main
 
-// go fmt && golint && go test && go run cracker.go -cpuprofile cpu.prof && echo top | go tool pprof cpu.prof
+// go fmt && golint && go test && go run cracker.go -cheat=true -masks=bbbyy,yybbb -cpuprofile cpu.prof && echo top | go tool pprof cpu.prof
 
 import (
 	"flag"
@@ -15,8 +15,9 @@ import (
 
 var (
 	cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
-	masks      = flag.String("masks", "bbbyy,gybbb,gyybb,gbygb,ggbgg", "masks from previous games in the form of yyybb,ygbyy,... (omit the final ggggg)")
 	cheat      = flag.Bool("cheat", false, "Use the actual game dicts instead of the open source")
+	colorbars  = flag.String("colorbars", "bbbyy,gybbb,gyybb,gbygb,ggbgg", "colorbars from previous games in the form of yyybb,ygbyy,... (omit the final ggggg)")
+	guessed    = flag.String("guessed", "", "comma-separated list of guess/colorbar pairs e.g., foo/gbb,oof/bby,...")
 )
 
 // loadFile returns the contents of a file split on newlines, sorted, and uniqued
@@ -26,19 +27,49 @@ func loadFile(file string) []string {
 }
 
 // loadDict returns the mystery and guessable word lists
-func loadDicts() ([]string, []string) {
-	if *cheat {
-		return sortUnique(loadFile("../dictionaries/wordleMystery.dict")), sortUnique(loadFile("../dictionaries/wordleGuessable.dict"))
+func loadDicts(cheat bool, wordLen int) ([]string, []string) {
+	if cheat {
+		mysteries := loadFile("../dictionaries/wordleMystery.dict")
+		mysteries = sortUnique(mysteries)
+		mysteries = filterByLen(mysteries, wordLen)
+
+		guessables := loadFile("../dictionaries/wordleGuessable.dict")
+		guessables = sortUnique(guessables)
+		guessables = filterByLen(guessables, wordLen)
+
+		return mysteries, guessables
 	}
 
 	// Even though they are identical, make a copy. Otherwise one will be a
-	// reference to the other and we will get data corruption if we try to
-	// manipulate the dictionaries separately.
-	mysteries := sortUnique(loadFile("../dictionaries/huge.dict"))
+	// reference to the other and we will get data corruption if we ever try
+	// to manipulate the dictionaries separately.
+	mysteries := loadFile("../dictionaries/huge.dict")
+	mysteries = sortUnique(mysteries)
+	mysteries = filterByLen(mysteries, wordLen)
+
 	guessables := make([]string, len(mysteries))
 	copy(guessables, mysteries)
 
 	return mysteries, guessables
+}
+
+// validMask
+func validMask(mask string, length int) (bool, error) {
+	if len(mask) != length {
+		return false, fmt.Errorf("Masks must all be of the same length %s", mask)
+	}
+
+	for _, val := range mask {
+		switch val {
+		case 'g':
+		case 'y':
+		case 'b':
+		default:
+			return false, fmt.Errorf("Masks must contain only g, y, or b %s %c", mask, val)
+		}
+	}
+
+	return true, nil
 }
 
 // unpackMasks returns the command line masks representation in slices
@@ -49,24 +80,33 @@ func unpackMasks(s string) ([]string, error) {
 		return nil, fmt.Errorf("Too few masks %v %d", masks, len(masks))
 	}
 
-	l := len(masks[0])
 	for _, m := range masks {
-		if len(m) != l {
-			return nil, fmt.Errorf("Masks must all be of the same length %v %s", masks, m)
-		}
-
-		for _, val := range m {
-			switch val {
-			case 'g':
-			case 'y':
-			case 'b':
-			default:
-				return nil, fmt.Errorf("Masks must contain only g, y, or b %v %s %c", masks, m, val)
-			}
+		if ok, err := validMask(m, len(masks[0])); !ok {
+			return nil, err
 		}
 	}
 
 	return sortUnique(masks), nil
+}
+
+// unpackGuessed returns the words guessed and the resulting colorbar masks in slices
+func unpackGuessed(guessedPairs string) ([]string, []string, error) {
+	guessWords := []string{}
+	guessMasks := []string{}
+
+	for _, pair := range strings.Split(guessedPairs, ",") {
+		s := strings.Split(pair, "/")
+		if len(s) != 2 {
+			return nil, nil, fmt.Errorf("too many/few slash-delimited values %s %v", pair, s)
+		}
+		if ok, err := validMask(s[1], len(s[0])); !ok {
+			return nil, nil, err
+		}
+		guessWords = append(guessWords, s[0])
+		guessMasks = append(guessMasks, s[1])
+	}
+
+	return guessWords, guessMasks, nil
 }
 
 // filterByLen returns all words of a given len from a given list of words
@@ -309,11 +349,15 @@ func scoreWords(words []string, lFreq []int) ([]string, int, []score) {
 	return maxWords, maxScore, scores
 }
 
-// ----------------------------------------------------------
-
 // printStats prints statistics abut the matches
-func printStats(matches, masks []string) {
+func printStats(matches, masks []string, message string) {
 	fmt.Println()
+	fmt.Println("===================================================")
+
+	if message != "" {
+		fmt.Println(message)
+		fmt.Println()
+	}
 
 	samples := 10
 	if samples > len(matches) {
@@ -334,25 +378,17 @@ func printStats(matches, masks []string) {
 
 	maxWords, maxScore, _ := scoreWords(matches, lFreq)
 	fmt.Printf("\nSuggested guess(es): %v for a score of %d\n", maxWords, maxScore)
+
+	fmt.Println("===================================================")
+	fmt.Println()
 }
 
 // crack runs the main loop
-func crack(m string) error {
-	masks, err := unpackMasks(m)
-	if err != nil {
-		return err
-	}
-
-	mysteries, guessables := loadDicts()
-
-	// Use only the words of appropriate length
-	mysteries = filterByLen(mysteries, len(masks[0]))
-	guessables = filterByLen(guessables, len(masks[0]))
-
+func crack(mysteries, guessables, masks []string) error {
 	// Find which mystery words can be formed using words from the guessable words
 	matches := applyMasks(mysteries, guessables, masks)
 
-	printStats(matches, masks)
+	printStats(matches, masks, "")
 
 	return nil
 }
@@ -535,12 +571,8 @@ func blackCompliant(letters string, mask, guess string) bool {
 	return true
 }
 
-func play(wordLen int) {
-	mysteries, guessableWords := loadDicts()
-
-	// Use only the words of appropriate length
-	mysteries = filterByLen(mysteries, wordLen)
-	guessableWords = filterByLen(guessableWords, wordLen)
+func playAllWords(wordLen int) {
+	mysteries, guessables := loadDicts(false, wordLen)
 
 	totalGuesses := 0
 	totalWords := 0
@@ -548,30 +580,37 @@ func play(wordLen int) {
 	for _, mystery := range mysteries {
 		masks := []string{}
 		guesses := ""
-		guessables := guessableWords
+		guessableWords := guessables
 		totalWords++
 
 		for i := 1; ; i++ {
-			guess := suggestGuess(guessables, guesses)
+			guess := suggestGuess(guessableWords, guesses)
 			guesses += "." + guess
 			totalGuesses++
 
 			mask := makeMask(mystery, guess)
 			masks = append(masks, mask)
 
-			// fmt.Println("Guessing:", mystery, guess, masks, len(guessables))
-
 			if guess == mystery {
-				// fmt.Printf("Got it in %d guesses!!!!\n", i)
 				break
 			}
 
-			guessables = pruneGuessables(guessables, guess, mask)
+			guessableWords = pruneGuessables(guessableWords, guess, mask)
 		}
 	}
 
 	fmt.Println("Total words:", totalWords)
 	fmt.Println("Average guesses:", float64(totalGuesses)/float64(totalWords))
+}
+
+func solveOne(mysteries, guessables, masks, guessWords, guessMasks []string) {
+	// Find which mystery words can be formed using words from the guessable words
+	matches := applyMasks(mysteries, guessables, masks)
+	printStats(matches, masks, "Analysis of initial masks")
+
+	guesses := strings.Join(guessWords, ".")
+	guess := suggestGuess(matches, guesses)
+	fmt.Println("Suggested guess:", guess)
 }
 
 func main() {
@@ -587,11 +626,31 @@ func main() {
 		defer pprof.StopCPUProfile()
 	}
 
-	// play(5)
+	// playAllWords(5)
 	// return
 
-	err := crack(*masks)
+	masks, err := unpackMasks(*colorbars)
 	if err != nil {
 		fmt.Println(err)
+		return
+	}
+
+	// Use only the words of appropriate length
+	wordLen := len(masks[0])
+	mysteries, guessables := loadDicts(*cheat, wordLen)
+
+	if *guessed == "" {
+		err = crack(mysteries, guessables, masks)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+	} else {
+		guessWords, guessMasks, err := unpackGuessed(*guessed)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		solveOne(mysteries, guessables, masks, guessWords, guessMasks)
 	}
 }
