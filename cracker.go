@@ -53,7 +53,7 @@ func loadDicts(cheat bool, wordLen int) ([]string, []string) {
 	return mysteries, guessables
 }
 
-// validMask
+// validMask returns true if the mask appears to be valid
 func validMask(mask string, length int) (bool, error) {
 	if len(mask) != length {
 		return false, fmt.Errorf("Masks must all be of the same length %s", mask)
@@ -223,7 +223,7 @@ func matchMasks(word string, masks, candidates []string) bool {
 }
 
 // applyMasks returns the set of matches for a given set of masks
-func applyMasks(mysteries, guessables []string, masks []string) []string {
+func applyMasks(mysteries, guessables, masks []string) []string {
 	matches := []string{}
 
 	// For each candidate, find the matches for each mask

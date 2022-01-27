@@ -18,6 +18,34 @@ func equal(a, b []string) bool {
 	return true
 }
 
+func equalInt(a, b []int) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+
+	return true
+}
+
+func equalInt2(a, b [][]int) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	for i := range a {
+		if !equalInt(a[i], b[i]) {
+			return false
+		}
+	}
+
+	return true
+}
+
 func equalByte(a, b []byte) bool {
 	if len(a) != len(b) {
 		return false
@@ -58,6 +86,35 @@ func equalScore(a, b score) bool {
 	return a.score == b.score && a.word == b.word
 }
 
+func TestValidMask(t *testing.T) {
+	testCases := []struct {
+		m        string
+		len      int
+		expected bool
+	}{
+		{"", 0, true},
+		{"b", 1, true},
+		{"y", 1, true},
+		{"g", 1, true},
+		{"x", 1, false},
+		{"bbyyg", 5, true},
+		{"bbyyg", 3, false},
+	}
+
+	for _, testCase := range testCases {
+		answer, err := validMask(testCase.m, testCase.len)
+		if answer != testCase.expected {
+			t.Errorf("ERROR: For %s %d expected %t, got %t", testCase.m, testCase.len, testCase.expected, answer)
+		}
+		if answer && err != nil {
+			t.Errorf("ERROR: For %s %d expected no error, got an error", testCase.m, testCase.len)
+		}
+		if !answer && err == nil {
+			t.Errorf("ERROR: For %s %d expected an error, got nil", testCase.m, testCase.len)
+		}
+	}
+}
+
 func TestUnpackMasks(t *testing.T) {
 	testCases := []struct {
 		m           string
@@ -83,6 +140,39 @@ func TestUnpackMasks(t *testing.T) {
 		}
 		if !testCase.expectError && err != nil {
 			t.Errorf("ERROR: For '%s' expected error:nil, got error:%v", testCase.m, err)
+		}
+	}
+}
+
+func TestUnpackGuessed(t *testing.T) {
+	testCases := []struct {
+		g           string
+		expected1   []string
+		expected2   []string
+		expectError bool
+	}{
+		{"", []string{}, []string{}, true},
+		{"bbbyy", []string{}, []string{}, true},
+		{"bbbyy,gy,gyybb,gbygb,ggbgg", []string{}, []string{}, true},
+		{"bbbyy,gybbbbb,gyybb,gbygb,ggbgg", []string{}, []string{}, true},
+		{"bbbyy,gybbb,gyybb,gbygb,ggbgg,asdff", []string{}, []string{}, true},
+		{"moist/bbbyy,house/gybbb,walks/gyybb", []string{"moist", "house", "walks"}, []string{"bbbyy", "gybbb", "gyybb"}, false},
+		{"to/bb,of/gy,is/gg", []string{"to", "of", "is"}, []string{"bb", "gy", "gg"}, false},
+	}
+
+	for _, testCase := range testCases {
+		answer1, answer2, err := unpackGuessed(testCase.g)
+		if !equal(answer1, testCase.expected1) {
+			t.Errorf("ERROR: For '%s' expected %v %v, got %v %v", testCase.g, testCase.expected1, testCase.expected2, answer1, answer2)
+		}
+		if !equal(answer2, testCase.expected2) {
+			t.Errorf("ERROR: For '%s' expected %v %v, got %v %v", testCase.g, testCase.expected1, testCase.expected2, answer1, answer2)
+		}
+		if testCase.expectError && err == nil {
+			t.Errorf("ERROR: For '%s' expected error:<something>, got error:%v", testCase.g, err)
+		}
+		if !testCase.expectError && err != nil {
+			t.Errorf("ERROR: For '%s' expected error:nil, got error:%v", testCase.g, err)
 		}
 	}
 }
@@ -206,6 +296,27 @@ func TestMatchMasks(t *testing.T) {
 	}
 }
 
+func TestApplyMasks(t *testing.T) {
+	testCases := []struct {
+		m        []string
+		g        []string
+		masks    []string
+		expected []string
+	}{
+		{[]string{}, []string{}, []string{}, []string{}},
+		{[]string{"foo"}, []string{"foo"}, []string{"ggg"}, []string{"foo"}},
+		{[]string{"foo"}, []string{"foo"}, []string{"bbb"}, []string{}},
+		{[]string{"foo"}, []string{"bar"}, []string{"ggg"}, []string{}},
+	}
+
+	for _, testCase := range testCases {
+		answer := applyMasks(testCase.m, testCase.g, testCase.masks)
+		if !equal(answer, testCase.expected) {
+			t.Errorf("ERROR: For %v/%v/%v expected %v, got %v", testCase.m, testCase.g, testCase.masks, testCase.expected, answer)
+		}
+	}
+}
+
 func TestSortUnique(t *testing.T) {
 	testCases := []struct {
 		w        []string
@@ -218,6 +329,26 @@ func TestSortUnique(t *testing.T) {
 		answer := sortUnique(testCase.w)
 		if !equal(answer, testCase.expected) {
 			t.Errorf("ERROR: For %v expected %v, got %v", testCase.w, testCase.expected, answer)
+		}
+	}
+}
+
+func TestLetterFrequency(t *testing.T) {
+	testCases := []struct {
+		m         []string
+		expected1 []int
+		expected2 [][]int
+	}{
+		{[]string{}, []int{}, [][]int{}},
+	}
+
+	for _, testCase := range testCases {
+		answer1, answer2 := letterFrequency(testCase.m)
+		if !equalInt(answer1, testCase.expected1) {
+			t.Errorf("ERROR: For %v expected %v %v, got %v %v", testCase.m, testCase.expected1, testCase.expected2, answer1, answer2)
+		}
+		if !equalInt2(answer2, testCase.expected2) {
+			t.Errorf("ERROR: For %v expected %v %v, got %v %v", testCase.m, testCase.expected1, testCase.expected2, answer1, answer2)
 		}
 	}
 }
@@ -280,6 +411,48 @@ func TestSuggestGuess(t *testing.T) {
 		answer := suggestGuess(testCase.m, testCase.g)
 		if answer != testCase.expected {
 			t.Errorf("ERROR: For %v %s expected %s, got %s", testCase.m, testCase.g, testCase.expected, answer)
+		}
+	}
+}
+
+func TestPruneGuessables(t *testing.T) {
+	testCases := []struct {
+		g        []string
+		w        string
+		m        string
+		expected []string
+	}{
+		// Degenerate cases
+		{[]string{}, "", "", []string{}},
+		{[]string{""}, "", "", []string{""}},
+
+		// g
+		{[]string{"c", "d"}, "c", "g", []string{"c"}},
+		{[]string{"cat", "dog"}, "nap", "bgb", []string{"cat"}},
+		{[]string{"cat", "dog"}, "tap", "bgb", []string{}},
+		{[]string{"cat", "dog", "zaa"}, "nap", "bgb", []string{"cat", "zaa"}},
+
+		// simple b
+		{[]string{"c", "d"}, "c", "b", []string{"d"}},
+		{[]string{"cat", "dog"}, "cry", "bbb", []string{"dog"}},
+
+		// simple y
+		{[]string{"cx", "dx"}, "ac", "by", []string{"cx"}},
+
+		// b with g
+		{[]string{"cat", "dog"}, "ccy", "gbb", []string{"cat"}},
+
+		// b with y
+		{[]string{"cat", "dog"}, "ycc", "byb", []string{"cat"}},
+
+		// b with y and g
+		{[]string{"cat", "dog"}, "dgg", "gyb", []string{"dog"}},
+	}
+
+	for _, testCase := range testCases {
+		answer := pruneGuessables(testCase.g, testCase.w, testCase.m)
+		if !equal(answer, testCase.expected) {
+			t.Errorf("ERROR: For %v '%s' '%s' expected %v, got %v", testCase.g, testCase.w, testCase.m, testCase.expected, answer)
 		}
 	}
 }
