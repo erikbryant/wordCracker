@@ -16,7 +16,7 @@ import (
 var (
 	cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
 	cheat      = flag.Bool("cheat", false, "Use the actual game dicts instead of the open source")
-	colorbars  = flag.String("colorbars", "bbbyy,gybbb,gyybb,gbygb,ggbgg", "colorbars from previous games in the form of yyybb,ygbyy,... (omit the final ggggg)")
+	colorbars  = flag.String("colorbars", "", "colorbars from previous games in the form of yyybb,ygbyy,... (omit the final ggggg)")
 	guessed    = flag.String("guessed", "", "comma-separated list of guess/colorbar pairs e.g., foo/gbb,oof/bby,...")
 )
 
