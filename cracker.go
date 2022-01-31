@@ -76,10 +76,6 @@ func validMask(mask string, length int) (bool, error) {
 func unpackMasks(s string) ([]string, error) {
 	masks := strings.Split(s, ",")
 
-	if len(masks) <= 1 {
-		return nil, fmt.Errorf("Too few masks %v %d", masks, len(masks))
-	}
-
 	for _, m := range masks {
 		if ok, err := validMask(m, len(masks[0])); !ok {
 			return nil, err
@@ -619,8 +615,11 @@ func solveOne(mysteries, guessables, masks, guessWords, guessMasks []string) {
 		fmt.Println(matches)
 	}
 
+	fmt.Println("===================================================")
 	guess := suggestGuess(matches, guesses)
 	fmt.Println("Suggested guess:", guess)
+	fmt.Println("===================================================")
+	fmt.Println()
 }
 
 func main() {

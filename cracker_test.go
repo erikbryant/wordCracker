@@ -121,8 +121,8 @@ func TestUnpackMasks(t *testing.T) {
 		expected    []string
 		expectError bool
 	}{
-		{"", []string{}, true},
-		{"bbbyy", []string{}, true},
+		{"", []string{""}, false},
+		{"bbbyy", []string{"bbbyy"}, false},
 		{"bbbyy,gy,gyybb,gbygb,ggbgg", []string{}, true},
 		{"bbbyy,gybbbbb,gyybb,gbygb,ggbgg", []string{}, true},
 		{"bbbyy,gybbb,gyybb,gbygb,ggbgg,asdff", []string{}, true},
