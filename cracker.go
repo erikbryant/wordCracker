@@ -18,7 +18,24 @@ var (
 	cheat      = flag.Bool("cheat", false, "Use the actual game dicts instead of the open source")
 	colorbars  = flag.String("colorbars", "", "colorbars from previous games in the form of yyybb,ygbyy,... (omit the final ggggg)")
 	guessed    = flag.String("guessed", "", "comma-separated list of guess/colorbar pairs e.g., foo/gbb,oof/bby,...")
+	mystery    = flag.String("mystery", "", "the mystery word (if you know it), useful for error checking masks")
 )
+
+// contains returns true if the word is in the slice
+func containsWord(words []string, target string) bool {
+	if target == "" {
+		// Nothing to search for
+		return true
+	}
+
+	for _, word := range words {
+		if word == target {
+			return true
+		}
+	}
+
+	return false
+}
 
 // loadFile returns the contents of a file split on newlines, sorted, and uniqued
 func loadFile(file string) []string {
@@ -379,10 +396,13 @@ func printStats(matches, masks []string, message string) {
 	fmt.Println()
 }
 
-// crack runs the main loop
-func crack(mysteries, guessables, masks []string) error {
+// crack eliminates all wods that do not match the masks
+func crack(mysteries, guessables, masks []string, mystery string) error {
 	// Find which mystery words can be formed using words from the guessable words
 	matches := applyMasks(mysteries, guessables, masks)
+	if !containsWord(matches, mystery) {
+		return fmt.Errorf("mystery word is not in matches %v %s", matches, mystery)
+	}
 
 	printStats(matches, masks, "")
 
@@ -599,9 +619,12 @@ func playAllWords(cheat bool, wordLen int) {
 	fmt.Println("Average guesses:", float64(totalGuesses)/float64(totalWords))
 }
 
-func solveOne(mysteries, guessables, masks, guessWords, guessMasks []string) {
+func solveOne(mysteries, guessables, masks, guessWords, guessMasks []string, mystery string) error {
 	// Find which mystery words can be formed using words from the guessable words
 	matches := applyMasks(mysteries, guessables, masks)
+	if !containsWord(matches, mystery) {
+		return fmt.Errorf("mystery word has been excluded from matches %v %s", matches, mystery)
+	}
 	printStats(matches, masks, "Analysis of initial masks")
 
 	guesses := ""
@@ -610,6 +633,9 @@ func solveOne(mysteries, guessables, masks, guessWords, guessMasks []string) {
 		guesses += "." + guessWords[i]
 
 		matches = pruneGuessables(matches, guessWords[i], guessMasks[i])
+		if !containsWord(matches, mystery) {
+			return fmt.Errorf("mystery word has been excluded from matches after guessing %v %s", matches, mystery)
+		}
 		msg := fmt.Sprintf("After applying %s/%s", guessWords[i], guessMasks[i])
 		printStats(matches, masks, msg)
 		fmt.Println(matches)
@@ -620,6 +646,8 @@ func solveOne(mysteries, guessables, masks, guessWords, guessMasks []string) {
 	fmt.Println("Suggested guess:", guess)
 	fmt.Println("===================================================")
 	fmt.Println()
+
+	return nil
 }
 
 func main() {
@@ -648,18 +676,24 @@ func main() {
 	wordLen := len(masks[0])
 	mysteries, guessables := loadDicts(*cheat, wordLen)
 
+	// If there are no guesses, just find the set of matches
 	if *guessed == "" {
-		err = crack(mysteries, guessables, masks)
+		err = crack(mysteries, guessables, masks, *mystery)
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
-	} else {
-		guessWords, guessMasks, err := unpackGuessed(*guessed)
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-		solveOne(mysteries, guessables, masks, guessWords, guessMasks)
+	}
+
+	// There is a guess. Unpack those and start solving.
+	guessWords, guessMasks, err := unpackGuessed(*guessed)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	err = solveOne(mysteries, guessables, masks, guessWords, guessMasks, *mystery)
+	if err != nil {
+		fmt.Println(err)
+		return
 	}
 }
