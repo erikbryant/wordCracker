@@ -165,7 +165,7 @@ func matchSingleWord(word, mask, candidate string) bool {
 	// We will mask out some of the letters in word. Store that in w.
 	w := make([]byte, len(word))
 
-	// Evaluate 'b' and 'g' masks
+	// Evaluate 'g' masks
 	for i, m := range mask {
 		switch m {
 		case 'g':
@@ -175,11 +175,6 @@ func matchSingleWord(word, mask, candidate string) bool {
 			// This letter has been "spoken for", mark it as such
 			w[i] = '_'
 			continue
-		case 'b':
-			if strings.ContainsRune(word, rune(candidate[i])) {
-				return false
-			}
-		case '.':
 		}
 
 		w[i] = word[i]
@@ -205,6 +200,17 @@ func matchSingleWord(word, mask, candidate string) bool {
 		replace(w, candidate[i], '_')
 	}
 
+	// Evaluate 'b' masks
+	for i, m := range mask {
+		switch m {
+		case 'b':
+			// Only look at letters that are not already spoken for
+			if strings.ContainsRune(string(w), rune(candidate[i])) {
+				return false
+			}
+		}
+	}
+
 	return true
 }
 
@@ -225,12 +231,6 @@ func matchMasks(word string, masks, candidates []string) bool {
 			return false
 		}
 	}
-
-	// temp := []string{}
-	// for _, match := range matches {
-	// 	temp = append(temp, match[0])
-	// }
-	// fmt.Println(word, temp)
 
 	return true
 }

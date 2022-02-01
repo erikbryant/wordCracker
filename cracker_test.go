@@ -265,6 +265,8 @@ func TestMatchSingleWord(t *testing.T) {
 		{"alpha", "bbbbb", "xyzzy", true},
 		{"pha", "bbb", "zzy", true},
 		{"pha", "bby", "zzp", true},
+		{"those", "gbygb", "tress", true},
+		{"those", "gbygb", "trest", true},
 	}
 
 	for _, testCase := range testCases {
