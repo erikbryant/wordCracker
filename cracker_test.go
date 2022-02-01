@@ -394,7 +394,7 @@ func TestFindMaxScore(t *testing.T) {
 	}
 }
 
-func TestSuggestGuess(t *testing.T) {
+func TestSuggestGuessLetterrFreq(t *testing.T) {
 	testCases := []struct {
 		m        []string
 		g        string
@@ -408,7 +408,7 @@ func TestSuggestGuess(t *testing.T) {
 	}
 
 	for _, testCase := range testCases {
-		answer := suggestGuess(testCase.m, testCase.g)
+		answer := suggestGuessLetterFreq(testCase.m, testCase.g)
 		if answer != testCase.expected {
 			t.Errorf("ERROR: For %v %s expected %s, got %s", testCase.m, testCase.g, testCase.expected, answer)
 		}

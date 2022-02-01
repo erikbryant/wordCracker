@@ -291,7 +291,7 @@ func prettyPrintFreq(f []int) string {
 		if val == 0 {
 			continue
 		}
-		str := fmt.Sprintf("%c:%3d", key, val)
+		str := fmt.Sprintf("%c:%2d", key, val)
 		out = append(out, str)
 	}
 
@@ -452,6 +452,41 @@ func suggestGuessLetterFreq(matches []string, guesses string) string {
 	return max.word
 }
 
+func countMasks(word string, matches []string) int {
+	masks := map[string]bool{}
+
+	for _, match := range matches {
+		mask := makeMask(word, match)
+		masks[mask] = true
+	}
+
+	return len(masks)
+}
+
+func suggestGuessMaskCount(matches []string, guesses string) string {
+	maxMasks := 0
+	suggestions := []string{}
+
+	for _, match := range matches {
+		if strings.Contains(guesses, match) {
+			// We have already guessed this word
+			continue
+		}
+		c := countMasks(match, matches)
+		if c == maxMasks {
+			suggestions = append(suggestions, match)
+			continue
+		}
+		if c > maxMasks {
+			maxMasks = c
+			suggestions = []string{match}
+			continue
+		}
+	}
+
+	return suggestions[0]
+}
+
 func pruneGuessables(guessables []string, word, mask string) []string {
 	pruned := []string{}
 
@@ -580,7 +615,12 @@ func playAllWords(cheat bool, wordLen int) {
 		totalWords++
 
 		for i := 1; ; i++ {
-			guess := suggestGuessLetterFreq(guessableWords, guesses)
+			// guess := suggestGuessLetterFreq(guessableWords, guesses)
+			guess := "teras"
+			if i != 1 {
+				guess = suggestGuessMaskCount(guessableWords, guesses)
+			}
+
 			guesses += "." + guess
 			totalGuesses++
 
@@ -588,6 +628,7 @@ func playAllWords(cheat bool, wordLen int) {
 			masks = append(masks, mask)
 
 			if guess == mystery {
+				fmt.Println(i)
 				break
 			}
 
