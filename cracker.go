@@ -681,8 +681,8 @@ func main() {
 		err = crack(mysteries, guessables, masks, *mystery)
 		if err != nil {
 			fmt.Println(err)
-			return
 		}
+		return
 	}
 
 	// There is a guess. Unpack those and start solving.
