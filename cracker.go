@@ -1,6 +1,6 @@
 package main
 
-// go fmt && golint && go test && go run cracker.go -cheat=true -masks=bbbyy,yybbb -cpuprofile cpu.prof && echo top | go tool pprof cpu.prof
+// go fmt && golint && go test && go run cracker.go -cheat=true -colorbars=bbbyy,yybbb -cpuprofile cpu.prof && echo top | go tool pprof cpu.prof
 
 import (
 	"flag"
@@ -51,8 +51,8 @@ func loadDicts(cheat bool, wordLen int) ([]string, []string) {
 		mysteries = filterByLen(mysteries, wordLen)
 
 		guessables := loadFile("../dictionaries/wordleGuessable.dict")
-		guessables = sortUnique(guessables)
 		guessables = filterByLen(guessables, wordLen)
+		guessables = sortUnique(guessables)
 
 		return mysteries, guessables
 	}
@@ -61,8 +61,8 @@ func loadDicts(cheat bool, wordLen int) ([]string, []string) {
 	// reference to the other and we will get data corruption if we ever try
 	// to manipulate the dictionaries separately.
 	mysteries := loadFile("../dictionaries/huge.dict")
-	mysteries = sortUnique(mysteries)
 	mysteries = filterByLen(mysteries, wordLen)
+	mysteries = sortUnique(mysteries)
 
 	guessables := make([]string, len(mysteries))
 	copy(guessables, mysteries)
