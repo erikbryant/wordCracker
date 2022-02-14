@@ -18,34 +18,6 @@ func equal(a, b []string) bool {
 	return true
 }
 
-func equalInt(a, b []int) bool {
-	if len(a) != len(b) {
-		return false
-	}
-
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-
-	return true
-}
-
-func equalInt2(a, b [][]int) bool {
-	if len(a) != len(b) {
-		return false
-	}
-
-	for i := range a {
-		if !equalInt(a[i], b[i]) {
-			return false
-		}
-	}
-
-	return true
-}
-
 func equalByte(a, b []byte) bool {
 	if len(a) != len(b) {
 		return false
