@@ -3,13 +3,12 @@ package main
 // go fmt && golint && go test && go run cracker.go -cheat=true -colorbars=bbbyy,yybbb -cpuprofile cpu.prof && echo top | go tool pprof cpu.prof
 
 import (
+	"../dictionaries"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"runtime/pprof"
-	"sort"
 	"strings"
 )
 
@@ -21,38 +20,16 @@ var (
 	mystery    = flag.String("mystery", "", "the mystery word (if you know it), useful for error checking masks")
 )
 
-// contains returns true if the word is in the slice
-func containsWord(words []string, target string) bool {
-	if target == "" {
-		// Nothing to search for
-		return true
-	}
-
-	for _, word := range words {
-		if word == target {
-			return true
-		}
-	}
-
-	return false
-}
-
-// loadFile returns the contents of a file split on newlines, sorted, and uniqued
-func loadFile(file string) []string {
-	raw, _ := ioutil.ReadFile(file)
-	return strings.Split(string(raw), "\n")
-}
-
-// loadDict returns the mystery and guessable word lists
+// loadDicts returns the mystery and guessable word lists
 func loadDicts(cheat bool, wordLen int) ([]string, []string) {
 	if cheat {
-		mysteries := loadFile("../dictionaries/wordleMystery.dict")
-		mysteries = sortUnique(mysteries)
-		mysteries = filterByLen(mysteries, wordLen)
+		mysteries := dictionaries.LoadFile("../dictionaries/wordleMystery.dict")
+		mysteries = dictionaries.SortUnique(mysteries)
+		mysteries = dictionaries.FilterByLen(mysteries, wordLen)
 
-		guessables := loadFile("../dictionaries/wordleGuessable.dict")
-		guessables = filterByLen(guessables, wordLen)
-		guessables = sortUnique(guessables)
+		guessables := dictionaries.LoadFile("../dictionaries/wordleGuessable.dict")
+		guessables = dictionaries.FilterByLen(guessables, wordLen)
+		guessables = dictionaries.SortUnique(guessables)
 
 		return mysteries, guessables
 	}
@@ -60,9 +37,9 @@ func loadDicts(cheat bool, wordLen int) ([]string, []string) {
 	// Even though they are identical, make a copy. Otherwise one will be a
 	// reference to the other and we will get data corruption if we ever try
 	// to manipulate the dictionaries separately.
-	mysteries := loadFile("../dictionaries/huge.dict")
-	mysteries = filterByLen(mysteries, wordLen)
-	mysteries = sortUnique(mysteries)
+	mysteries := dictionaries.LoadFile("../dictionaries/huge.dict")
+	mysteries = dictionaries.FilterByLen(mysteries, wordLen)
+	mysteries = dictionaries.SortUnique(mysteries)
 
 	guessables := make([]string, len(mysteries))
 	copy(guessables, mysteries)
@@ -99,7 +76,7 @@ func unpackMasks(s string) ([]string, error) {
 		}
 	}
 
-	return sortUnique(masks), nil
+	return dictionaries.SortUnique(masks), nil
 }
 
 // unpackGuessed returns the words guessed and the resulting colorbar masks in slices
@@ -120,19 +97,6 @@ func unpackGuessed(guessedPairs string) ([]string, []string, error) {
 	}
 
 	return guessWords, guessMasks, nil
-}
-
-// filterByLen returns all words of a given len from a given list of words
-func filterByLen(words []string, l int) []string {
-	matches := []string{}
-
-	for _, word := range words {
-		if len(word) == l {
-			matches = append(matches, word)
-		}
-	}
-
-	return matches
 }
 
 // replace replaces the first instance of a with b in w
@@ -249,72 +213,6 @@ func applyMasks(mysteries, guessables, masks []string) []string {
 	return matches
 }
 
-// sortUnique sorts a list and removes any duplicates
-func sortUnique(s []string) []string {
-	if len(s) <= 0 {
-		return []string{}
-	}
-
-	// Make a copy so we do not corrupt the backing array of s
-	s2 := make([]string, len(s))
-	copy(s2, s)
-
-	sort.Strings(s2)
-
-	last := s2[0]
-	for i := 1; i < len(s2); {
-		if s2[i] == last {
-			// Delete this duplicate
-			s2 = append(s2[:i], s2[i+1:]...)
-			continue
-		}
-		last = s2[i]
-		i++
-	}
-
-	return s2
-}
-
-// letterFrequency returns maps of the frequency of letters in the given matches
-func letterFrequency(matches []string) ([]int, [][]int) {
-	if len(matches) == 0 {
-		return nil, nil
-	}
-
-	letterLen := 256 // This is too many, but it is fast
-	positions := len(matches[0])
-	lFreq := make([]int, letterLen)
-	lbpFreq := make([][]int, positions)
-
-	for i := range lbpFreq {
-		lbpFreq[i] = make([]int, letterLen)
-	}
-
-	for _, match := range matches {
-		for i := 0; i < positions; i++ {
-			lbpFreq[i][match[i]]++
-			lFreq[match[i]]++
-		}
-	}
-
-	return lFreq, lbpFreq
-}
-
-// prettyPrintFreq returns a formatted string representation of the given map
-func prettyPrintFreq(f []int) string {
-	out := []string{}
-
-	for key, val := range f {
-		if val == 0 {
-			continue
-		}
-		str := fmt.Sprintf("%c:%3d", key, val)
-		out = append(out, str)
-	}
-
-	return fmt.Sprintf("  %s\n", strings.Join(sortUnique(out), " "))
-}
-
 // scoreWord returns the sum of unique letter frequencies for a given word
 func scoreWord(word string, freq []int) int {
 	used := map[rune]bool{}
@@ -379,15 +277,15 @@ func printStats(matches, masks []string, message string) {
 	fmt.Printf("Found %d matches for masks %v, printing first few...\n", len(matches), masks)
 	fmt.Println(matches[:samples])
 
-	lFreq, lByPos := letterFrequency(matches)
+	lFreq, lByPos := dictionaries.LetterFrequency(matches)
 
 	fmt.Println("Letter frequency by position:")
 	for i, pos := range lByPos {
-		fmt.Printf("  [%d] %s\n", i, prettyPrintFreq(pos))
+		fmt.Printf("  [%d] %s\n", i, dictionaries.PrettyPrintFreq(pos))
 	}
 
 	fmt.Println("Letter frequency overall:")
-	fmt.Printf(prettyPrintFreq(lFreq))
+	fmt.Printf(dictionaries.PrettyPrintFreq(lFreq))
 
 	maxWords, maxScore, _ := scoreWords(matches, lFreq)
 	fmt.Printf("\nSuggested guess(es): %v for a score of %d\n", maxWords, maxScore)
@@ -400,7 +298,7 @@ func printStats(matches, masks []string, message string) {
 func crack(mysteries, guessables, masks []string, mystery string) error {
 	// Find which mystery words can be formed using words from the guessable words
 	matches := applyMasks(mysteries, guessables, masks)
-	if !containsWord(matches, mystery) {
+	if !dictionaries.ContainsWord(matches, mystery) {
 		return fmt.Errorf("mystery word is not in matches %v %s", matches, mystery)
 	}
 
@@ -465,7 +363,7 @@ func findMaxScore(scores []score, guesses string) score {
 }
 
 func suggestGuessLetterFreq(matches []string, guesses string) string {
-	lFreq, _ := letterFrequency(matches)
+	lFreq, _ := dictionaries.LetterFrequency(matches)
 	_, _, scores := scoreWords(matches, lFreq)
 	max := findMaxScore(scores, guesses)
 
@@ -622,7 +520,7 @@ func playAllWords(cheat bool, wordLen int) {
 func solveOne(mysteries, guessables, masks, guessWords, guessMasks []string, mystery string) error {
 	// Find which mystery words can be formed using words from the guessable words
 	matches := applyMasks(mysteries, guessables, masks)
-	if !containsWord(matches, mystery) {
+	if !dictionaries.ContainsWord(matches, mystery) {
 		return fmt.Errorf("mystery word has been excluded from matches %v %s", matches, mystery)
 	}
 	printStats(matches, masks, "Analysis of initial masks")
@@ -633,7 +531,7 @@ func solveOne(mysteries, guessables, masks, guessWords, guessMasks []string, mys
 		guesses += "." + guessWords[i]
 
 		matches = pruneGuessables(matches, guessWords[i], guessMasks[i])
-		if !containsWord(matches, mystery) {
+		if !dictionaries.ContainsWord(matches, mystery) {
 			return fmt.Errorf("mystery word has been excluded from matches after guessing %v %s", matches, mystery)
 		}
 		msg := fmt.Sprintf("After applying %s/%s", guessWords[i], guessMasks[i])
