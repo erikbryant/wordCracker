@@ -37,7 +37,7 @@ func loadDicts(cheat bool, wordLen int) ([]string, []string) {
 	// Even though they are identical, make a copy. Otherwise one will be a
 	// reference to the other and we will get data corruption if we ever try
 	// to manipulate the dictionaries separately.
-	mysteries := dictionaries.LoadFile("../dictionaries/huge.dict")
+	mysteries := dictionaries.LoadFile("../dictionaries/merged.dict")
 	mysteries = dictionaries.FilterByLen(mysteries, wordLen)
 	mysteries = dictionaries.SortUnique(mysteries)
 
