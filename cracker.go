@@ -1,6 +1,6 @@
 package main
 
-// go fmt && golint && go test && go run cracker.go -cheat=true -colorbars=bbbyy,yybbb -cpuprofile cpu.prof && echo top | go tool pprof cpu.prof
+// go fmt && golint && go test && go run cracker.go -colorbars=bbbyy,yybbb -cpuprofile cpu.prof && echo top | go tool pprof cpu.prof
 
 import (
 	"../dictionaries"
@@ -14,26 +14,13 @@ import (
 
 var (
 	cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
-	cheat      = flag.Bool("cheat", false, "Use the actual game dicts instead of the open source")
-	colorbars  = flag.String("colorbars", "", "colorbars from previous games in the form of yyybb,ygbyy,... (omit the final ggggg)")
+	colorbars  = flag.String("colorbars", "bbbbb", "colorbars from previous games in the form of yyybb,ygbyy,... (omit the final ggggg)")
 	guessed    = flag.String("guessed", "", "comma-separated list of guess/colorbar pairs e.g., foo/gbb,oof/bby,...")
 	mystery    = flag.String("mystery", "", "the mystery word (if you know it), useful for error checking masks")
 )
 
 // loadDicts returns the mystery and guessable word lists
-func loadDicts(cheat bool, wordLen int) ([]string, []string) {
-	if cheat {
-		mysteries := dictionaries.LoadFile("../dictionaries/wordleMystery.dict")
-		mysteries = dictionaries.SortUnique(mysteries)
-		mysteries = dictionaries.FilterByLen(mysteries, wordLen)
-
-		guessables := dictionaries.LoadFile("../dictionaries/wordleGuessable.dict")
-		guessables = dictionaries.FilterByLen(guessables, wordLen)
-		guessables = dictionaries.SortUnique(guessables)
-
-		return mysteries, guessables
-	}
-
+func loadDicts(wordLen int) ([]string, []string) {
 	// Even though they are identical, make a copy. Otherwise one will be a
 	// reference to the other and we will get data corruption if we ever try
 	// to manipulate the dictionaries separately.
@@ -485,8 +472,8 @@ func blackCompliant(letters string, mask, guess string) bool {
 	return true
 }
 
-func playAllWords(cheat bool, wordLen int) {
-	mysteries, guessables := loadDicts(cheat, wordLen)
+func playAllWords(wordLen int) {
+	mysteries, guessables := loadDicts(wordLen)
 
 	totalGuesses := 0
 	totalWords := 0
@@ -561,7 +548,7 @@ func main() {
 		defer pprof.StopCPUProfile()
 	}
 
-	// playAllWords(*cheat, 5)
+	// playAllWords(5)
 	// return
 
 	masks, err := unpackMasks(*colorbars)
@@ -572,7 +559,7 @@ func main() {
 
 	// Use only the words of appropriate length
 	wordLen := len(masks[0])
-	mysteries, guessables := loadDicts(*cheat, wordLen)
+	mysteries, guessables := loadDicts(wordLen)
 
 	// If there are no guesses, just find the set of matches
 	if *guessed == "" {
