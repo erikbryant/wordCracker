@@ -3,9 +3,9 @@ package main
 // go fmt && golint && go test && go run cracker.go -colorbars=bbbyy,yybbb -cpuprofile cpu.prof && echo top | go tool pprof cpu.prof
 
 import (
-	"../dictionaries"
 	"flag"
 	"fmt"
+	"github.com/erikbryant/dictionaries"
 	"log"
 	"os"
 	"runtime/pprof"
