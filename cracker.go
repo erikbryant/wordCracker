@@ -360,116 +360,14 @@ func suggestGuessLetterFreq(matches []string, guesses string) string {
 func pruneGuessables(guessables []string, word, mask string) []string {
 	pruned := []string{}
 
-	//
-	// Yellow
-	//
-	yellowLetters := []byte{}
-	yellowLetterPos := [][]int{}
-	for i := range mask {
-		if mask[i] != 'y' {
-			continue
-		}
-
-		yellowLetters = append(yellowLetters, word[i])
-		yellowLetterPos = append(yellowLetterPos, []int{})
-		index := len(yellowLetters) - 1
-
-		for j := range mask {
-			if j == i {
-				// Skip our own letter
-				continue
-			}
-			if mask[j] == 'g' {
-				continue
-			}
-			// This is y or b and *could* be where our y-letter goes
-			yellowLetterPos[index] = append(yellowLetterPos[index], j)
-		}
-	}
-
-	//
-	// Black
-	//
-	blackLetters := ""
-	for i := range mask {
-		if mask[i] != 'b' {
-			continue
-		}
-
-		solvable := true
-		for j := range mask {
-			if mask[j] == 'y' && word[j] == word[i] {
-				// We do not have enough information to solve. Abort.
-				solvable = false
-				break
-			}
-		}
-		if !solvable {
-			continue
-		}
-
-		// This is a b letter and there are no y letters that are the same as this
-		// so this letter can't be anywhere in the word
-		blackLetters += string(word[i])
-	}
-
 	for _, guess := range guessables {
-		if !greenCompliant(word, mask, guess) {
-			continue
+		guessMask := makeMask(guess, word)
+		if guessMask == mask {
+			pruned = append(pruned, guess)
 		}
-
-		if !yellowCompliant(yellowLetters, yellowLetterPos, guess) {
-			continue
-		}
-
-		if !blackCompliant(blackLetters, mask, guess) {
-			continue
-		}
-
-		pruned = append(pruned, guess)
 	}
 
 	return pruned
-}
-
-func greenCompliant(word, mask, guess string) bool {
-	for i := range mask {
-		if mask[i] == 'g' && guess[i] != word[i] {
-			return false
-		}
-	}
-
-	return true
-}
-
-func yellowCompliant(letters []byte, letterPos [][]int, guess string) bool {
-	if len(letters) == 0 {
-		return true
-	}
-
-	for i, val := range letters {
-		// We need to find at least one instance of this letter
-		for _, pos := range letterPos[i] {
-			if guess[pos] == val {
-				return true
-			}
-		}
-	}
-
-	return false
-}
-
-func blackCompliant(letters string, mask, guess string) bool {
-	for i := range mask {
-		if mask[i] == 'g' {
-			continue
-		}
-		if strings.ContainsAny(string(guess[i]), letters) {
-			return false
-		}
-	}
-
-	return true
 }
 
 func playAllWords(wordLen int) {
@@ -493,6 +391,7 @@ func playAllWords(wordLen int) {
 			masks = append(masks, mask)
 
 			if guess == mystery {
+				fmt.Printf("Mystery: %s  Guesses: %2d  Total Words: %5d  Average guesses: %4.2f\n", mystery, i, totalWords, float64(totalGuesses)/float64(totalWords))
 				break
 			}
 
@@ -500,8 +399,7 @@ func playAllWords(wordLen int) {
 		}
 	}
 
-	fmt.Println("Total words:", totalWords)
-	fmt.Println("Average guesses:", float64(totalGuesses)/float64(totalWords))
+	fmt.Printf("\nTotal Words: %5d  Average guesses: %4.2f\n", totalWords, float64(totalGuesses)/float64(totalWords))
 }
 
 func solveOne(mysteries, guessables, masks, guessWords, guessMasks []string, mystery string) error {
@@ -519,7 +417,7 @@ func solveOne(mysteries, guessables, masks, guessWords, guessMasks []string, mys
 
 		matches = pruneGuessables(matches, guessWords[i], guessMasks[i])
 		if !dictionaries.ContainsWord(matches, mystery) {
-			return fmt.Errorf("mystery word has been excluded from matches after guessing %v %s", matches, mystery)
+			return fmt.Errorf("mystery word: '%s' has been excluded from matches after guessing: '%s'. %v", mystery, guessWords[i], matches)
 		}
 		msg := fmt.Sprintf("After applying %s/%s", guessWords[i], guessMasks[i])
 		printStats(matches, masks, msg)
@@ -578,6 +476,9 @@ func main() {
 	}
 	err = solveOne(mysteries, guessables, masks, guessWords, guessMasks, *mystery)
 	if err != nil {
+		fmt.Println()
+		fmt.Println("******** ERROR ********")
+		fmt.Println()
 		fmt.Println(err)
 		return
 	}

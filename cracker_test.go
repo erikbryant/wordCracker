@@ -363,7 +363,10 @@ func TestPruneGuessables(t *testing.T) {
 		{[]string{"cat", "dog"}, "ycc", "byb", []string{"cat"}},
 
 		// b with y and g
-		{[]string{"cat", "dog"}, "dgg", "gyb", []string{"dog"}},
+		{[]string{"cat", "dog"}, "dgg", "gyb", []string{}},
+
+		// bug found in y handling
+		{[]string{"bebed", "brine"}, "begin", "gybyy", []string{"brine"}},
 	}
 
 	for _, testCase := range testCases {
