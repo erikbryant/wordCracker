@@ -1,6 +1,6 @@
 package main
 
-// go fmt && golint && go test && go run cracker.go -colorbars=bbbyy,yybbb -cpuprofile cpu.prof && echo top | go tool pprof cpu.prof
+// go fmt ./... && go vet ./... && go test && go run cracker.go -colorbars=bbbyy,yybbb -cpuprofile cpu.prof && echo top | go tool pprof cpu.prof
 
 import (
 	"flag"
