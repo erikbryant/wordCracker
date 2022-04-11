@@ -1,6 +1,6 @@
 package main
 
-// go fmt ./... && go vet ./... && go test && go run cracker.go -colorbars=bbbyy,yybbb -cpuprofile cpu.prof && echo top | go tool pprof cpu.prof
+// go fmt ./... && go vet ./... && go test ./... && go run cracker.go -colorbars=bbbyy,yybbb -cpuprofile cpu.prof && echo top | go tool pprof cpu.prof
 
 import (
 	"flag"
@@ -13,10 +13,10 @@ import (
 )
 
 var (
-	cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
-	colorbars  = flag.String("colorbars", "bbbbb", "colorbars from previous games in the form of yyybb,ygbyy,... (omit the final ggggg)")
-	guessed    = flag.String("guessed", "", "comma-separated list of guess/colorbar pairs e.g., foo/gbb,oof/bby,...")
-	mystery    = flag.String("mystery", "", "the mystery word (if you know it), useful for error checking masks")
+	cpuprofile  = flag.String("cpuprofile", "", "write cpu profile to file")
+	colorbars   = flag.String("colorbars", "ggggg", "colorbars from previous games in the form of yyybb,ygbyy,... (omit the final ggggg)")
+	guessed     = flag.String("guessed", "", "comma-separated list of guess/colorbar pairs e.g., foo/gbb,oof/bby,...")
+	mysteryWord = flag.String("mystery", "", "the mystery word (if you know it), useful for error checking masks")
 )
 
 // loadDicts returns the mystery and guessable word lists
@@ -285,7 +285,7 @@ func printStats(matches, masks []string, message string) {
 func crack(mysteries, guessables, masks []string, mystery string) error {
 	// Find which mystery words can be formed using words from the guessable words
 	matches := applyMasks(mysteries, guessables, masks)
-	if !dictionaries.ContainsWord(matches, mystery) {
+	if mystery != "" && !dictionaries.ContainsWord(matches, mystery) {
 		return fmt.Errorf("mystery word is not in matches %v %s", matches, mystery)
 	}
 
@@ -405,7 +405,7 @@ func playAllWords(wordLen int) {
 func solveOne(mysteries, guessables, masks, guessWords, guessMasks []string, mystery string) error {
 	// Find which mystery words can be formed using words from the guessable words
 	matches := applyMasks(mysteries, guessables, masks)
-	if !dictionaries.ContainsWord(matches, mystery) {
+	if mystery != "" && !dictionaries.ContainsWord(matches, mystery) {
 		return fmt.Errorf("mystery word has been excluded from matches %v %s", matches, mystery)
 	}
 	printStats(matches, masks, "Analysis of initial masks")
@@ -416,7 +416,7 @@ func solveOne(mysteries, guessables, masks, guessWords, guessMasks []string, mys
 		guesses += "." + guessWords[i]
 
 		matches = pruneGuessables(matches, guessWords[i], guessMasks[i])
-		if !dictionaries.ContainsWord(matches, mystery) {
+		if mystery != "" && !dictionaries.ContainsWord(matches, mystery) {
 			return fmt.Errorf("mystery word: '%s' has been excluded from matches after guessing: '%s'. %v", mystery, guessWords[i], matches)
 		}
 		msg := fmt.Sprintf("After applying %s/%s", guessWords[i], guessMasks[i])
@@ -461,7 +461,7 @@ func main() {
 
 	// If there are no guesses, just find the set of matches
 	if *guessed == "" {
-		err = crack(mysteries, guessables, masks, *mystery)
+		err = crack(mysteries, guessables, masks, *mysteryWord)
 		if err != nil {
 			fmt.Println(err)
 		}
@@ -474,7 +474,7 @@ func main() {
 		fmt.Println(err)
 		return
 	}
-	err = solveOne(mysteries, guessables, masks, guessWords, guessMasks, *mystery)
+	err = solveOne(mysteries, guessables, masks, guessWords, guessMasks, *mysteryWord)
 	if err != nil {
 		fmt.Println()
 		fmt.Println("******** ERROR ********")
