@@ -298,9 +298,9 @@ func TestFindMaxScore(t *testing.T) {
 		expected score
 	}{
 		{[]score{}, "abc", score{-1, ""}},
-		{[]score{score{2, "aaa"}}, "abc", score{2, "aaa"}},
-		{[]score{score{2, "abc"}}, "abc", score{-1, ""}},
-		{[]score{score{2, "aaa"}, score{5, "abc"}}, "abc", score{2, "aaa"}},
+		{[]score{{2, "aaa"}}, "abc", score{2, "aaa"}},
+		{[]score{{2, "abc"}}, "abc", score{-1, ""}},
+		{[]score{{2, "aaa"}, {5, "abc"}}, "abc", score{2, "aaa"}},
 	}
 
 	for _, testCase := range testCases {

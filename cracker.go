@@ -5,11 +5,12 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/erikbryant/dictionaries"
 	"log"
 	"os"
 	"runtime/pprof"
 	"strings"
+
+	"github.com/erikbryant/dictionaries"
 )
 
 var (
@@ -37,7 +38,7 @@ func loadDicts(wordLen int) ([]string, []string) {
 // validMask returns true if the mask appears to be valid
 func validMask(mask string, length int) (bool, error) {
 	if len(mask) != length {
-		return false, fmt.Errorf("Masks must all be of the same length %s", mask)
+		return false, fmt.Errorf("masks must all be of the same length %s", mask)
 	}
 
 	for _, val := range mask {
@@ -46,7 +47,7 @@ func validMask(mask string, length int) (bool, error) {
 		case 'y':
 		case 'b':
 		default:
-			return false, fmt.Errorf("Masks must contain only g, y, or b %s %c", mask, val)
+			return false, fmt.Errorf("masks must contain only g, y, or b %s %c", mask, val)
 		}
 	}
 
@@ -272,7 +273,7 @@ func printStats(matches, masks []string, message string) {
 	}
 
 	fmt.Println("Letter frequency overall:")
-	fmt.Printf(dictionaries.PrettyPrintFreq(lFreq))
+	fmt.Print(dictionaries.PrettyPrintFreq(lFreq))
 
 	maxWords, maxScore, _ := scoreWords(matches, lFreq)
 	fmt.Printf("\nSuggested guess(es): %v for a score of %d\n", maxWords, maxScore)
@@ -377,7 +378,6 @@ func playAllWords(wordLen int) {
 	totalWords := 0
 
 	for _, mystery := range mysteries {
-		masks := []string{}
 		guesses := ""
 		guessableWords := guessables
 		totalWords++
@@ -388,7 +388,6 @@ func playAllWords(wordLen int) {
 			totalGuesses++
 
 			mask := makeMask(mystery, guess)
-			masks = append(masks, mask)
 
 			if guess == mystery {
 				fmt.Printf("Mystery: %s  Guesses: %2d  Total Words: %5d  Average guesses: %4.2f\n", mystery, i, totalWords, float64(totalGuesses)/float64(totalWords))
